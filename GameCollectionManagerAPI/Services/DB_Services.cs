@@ -50,6 +50,7 @@ namespace GameCollectionManagerAPI.Services
             }
             connStringBuilder.Database = "bank";
             SimpleConnection(connStringBuilder.ConnectionString);
+            return "";
         }
         static void SimpleConnection(string connectString)
         {

@@ -11,9 +11,11 @@ namespace GameCollectionManagerAPI.Controllers
 	public class GameCollectionController : ControllerBase
 	{
         private ILog log = LogManager.GetLogger(typeof(Program));
+		private DB_Services _DBService;
 
-        public GameCollectionController()
+        public GameCollectionController(DB_Services dB_Services)
 		{
+			_DBService = dB_Services;
 		}
 
 		[HttpGet("{user}")]

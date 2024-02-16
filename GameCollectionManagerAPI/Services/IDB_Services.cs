@@ -4,6 +4,6 @@ namespace GameCollectionManagerAPI
 {
     public interface IDB_Service
     {
-        public List<Game> GetGamesAsync(string user);
+        public Task<List<Game>> GetGamesAsync(string user);
     }
 }
