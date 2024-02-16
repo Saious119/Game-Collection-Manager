@@ -19,7 +19,7 @@ namespace GameCollectionManagerAPI.Services
                 user = "NoUser";
             }
             //Connect to CockroachDB for Data
-
+            ConnectionStringBuilder();
             log.Info("Found collection for user: " + user);
             //return json to frontend
             return new List<Game>();
@@ -29,7 +29,7 @@ namespace GameCollectionManagerAPI.Services
         {
             var connStringBuilder = new NpgsqlConnectionStringBuilder();
             connStringBuilder.SslMode = SslMode.VerifyFull;
-            string? databaseUrlEnv = "postgresql://user:password@manga-tracker-5581.g8z.cockroachlabs.cloud:26257/mangadb?sslmode=verify-full";
+            string? databaseUrlEnv = "postgresql://andy:password@manga-tracker-5581.g8z.cockroachlabs.cloud:26257/mangadb?sslmode=verify-full";
             if (databaseUrlEnv == null)
             {
                 connStringBuilder.Host = "localhost";
@@ -48,13 +48,40 @@ namespace GameCollectionManagerAPI.Services
                 if (items.Length > 1) { connStringBuilder.Password = items[1]; }
                 connStringBuilder.IncludeErrorDetail = true;
             }
-            connStringBuilder.Database = "bank";
-            SimpleConnection(connStringBuilder.ConnectionString);
-            return "";
+            connStringBuilder.Database = "gamedb";
+            Console.WriteLine("Going to connect");
+            return "Success";
         }
-        static void SimpleConnection(string connectString)
+        public string SimpleUpsert(string connectString)
         {
-            //using (var conn = new)
+            try
+            {
+                using (var conn = new NpgsqlConnection(connectString))
+                {
+                    conn.Open();
+                    using (var cmd = new NpgsqlCommand("CREATE TABLE IF NOT EXISTS users (id INT PRIMARY KEY, name STRING, releaseDate STRING, platform STRING, metacriticScore FLOAT, howlong FLOAT)", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                    using (var cmd = new NpgsqlCommand(""))
+                    {
+                        cmd.Connection = conn;
+                        cmd.CommandText = "UPSERT INTO user(id, name, releaseDate, platform, metacriticScore, howlong) VALUES(@id1, @val1, @val2, @val3, @val4, @val5)";
+                        cmd.Parameters.AddWithValue("id1", 1);
+                        cmd.Parameters.AddWithValue("val1", "Halo 4");
+                        cmd.Parameters.AddWithValue("val2", "11/6/2012");
+                        cmd.Parameters.AddWithValue("val3", "Xbox 360");
+                        cmd.Parameters.AddWithValue("val4", "87");
+                        cmd.Parameters.AddWithValue("val5", "7.5");
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            return "Success";
         }
     }
 }
