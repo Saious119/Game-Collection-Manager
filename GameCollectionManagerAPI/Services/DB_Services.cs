@@ -1,48 +1,59 @@
-﻿using System;
+using System;
 using log4net;
 using GameCollectionManagerAPI.Models;
-using MongoDB.Driver;
-using MongoDB.Bson;
-using MongoDB.Driver.Core.Misc;
+using System.Data;
+using System.Net.Security;
+using Npgsql;
 
 namespace GameCollectionManagerAPI.Services
 {
-	public class DB_Services
-	{
-		List<Game> gameList = new List<Game>();
+    public class DB_Services : IDB_Service
+    {
+        List<Game> gameList = new List<Game>();
         private ILog log = LogManager.GetLogger(typeof(Program));
 
-        public DB_Services()
-		{
-            var settings = MongoClientSettings.FromConnectionString("mongodb+srv://guest:defaultPass@serverlessinstance.izekv.mongodb.net/?retryWrites=true&w=majority");
-            settings.ServerApi = new ServerApi(ServerApiVersion.V1);
-            var client = new MongoClient(settings);
-            var database = client.GetDatabase("GameDB");
-        }
         public async Task<List<Game>> GetGamesAsync(string user)
         {
             if (user == null)
             {
                 user = "NoUser";
             }
-            //Connect to MongoDB for Data
-            var settings = MongoClientSettings.FromConnectionString("mongodb+srv://guest:defaultPass@serverlessinstance.izekv.mongodb.net/?retryWrites=true&w=majority");
-            settings.ServerApi = new ServerApi(ServerApiVersion.V1);
-            var client = new MongoClient(settings);
-            var database = client.GetDatabase("MangaDB");
-            IMongoCollection<Game> collection = null;
-            log.Info("Checking DB for user: " + user);
-            collection = database.GetCollection<Game>(user);
-            if (collection == null)
-            {
-                log.Info("Making new User " + user);
-                await database.CreateCollectionAsync(user);
-            }
-            collection = database.GetCollection<Game>(user);
+            //Connect to CockroachDB for Data
+
             log.Info("Found collection for user: " + user);
-            var documents = collection.Find(new BsonDocument()).ToList();
-            return documents;
+            //return json to frontend
+            return new List<Game>();
+        }
+
+        public string ConnectionStringBuilder()
+        {
+            var connStringBuilder = new NpgsqlConnectionStringBuilder();
+            connStringBuilder.SslMode = SslMode.VerifyFull;
+            string? databaseUrlEnv = "postgresql://user:password@manga-tracker-5581.g8z.cockroachlabs.cloud:26257/mangadb?sslmode=verify-full";
+            if (databaseUrlEnv == null)
+            {
+                connStringBuilder.Host = "localhost";
+                connStringBuilder.Port = 26257;
+                connStringBuilder.Username = "username";
+                connStringBuilder.Passfile = "password";
+                connStringBuilder.IncludeErrorDetail = true;
+            }
+            else
+            {
+                Uri databaseUrl = new Uri(databaseUrlEnv);
+                connStringBuilder.Host = databaseUrl.Host;
+                connStringBuilder.Port = databaseUrl.Port;
+                var items = databaseUrl.UserInfo.Split(new[] { ':' });
+                if (items.Length > 0) { connStringBuilder.Username = items[0]; }
+                if (items.Length > 1) { connStringBuilder.Password = items[1]; }
+                connStringBuilder.IncludeErrorDetail = true;
+            }
+            connStringBuilder.Database = "bank";
+            SimpleConnection(connStringBuilder.ConnectionString);
+        }
+        static void SimpleConnection(string connectString)
+        {
+            //using (var conn = new)
         }
     }
 }
-

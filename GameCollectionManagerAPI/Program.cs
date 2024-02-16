@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using GameCollectionManagerAPI.Services;
 
 namespace GameCollectionManagerAPI
 {
@@ -15,7 +16,9 @@ namespace GameCollectionManagerAPI
             var config = builder.Configuration;
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSingleton<IDB_Service, DB_Services>();
             builder.Services.AddSwaggerGen();
+
             var app = builder.Build();
 
             //if (app.Environment.IsDevelopment())
