@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using GameCollectionManagerAPI.Services;
 
 namespace GameCollectionManagerAPI
@@ -11,8 +10,6 @@ namespace GameCollectionManagerAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            //var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("VaultUri"));
-            //builder.Configuration.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
             var config = builder.Configuration;
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();

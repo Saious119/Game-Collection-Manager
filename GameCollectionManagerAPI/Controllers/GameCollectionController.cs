@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using GameCollectionManagerAPI.Models;
 using GameCollectionManagerAPI.Services;
 using log4net;
@@ -6,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 namespace GameCollectionManagerAPI.Controllers
 {
+    [Route("[controller]")]
     [ApiController]
-    [Route("api/game")]
     public class GameCollectionController : ControllerBase
     {
         private ILog log = LogManager.GetLogger(typeof(Program));
@@ -18,17 +19,49 @@ namespace GameCollectionManagerAPI.Controllers
             _DBService = dB_Services;
         }
 
-        [HttpGet("{user}")]
+        [HttpGet("GetCollection/{user}")]
         public string GetCollection(string user)
         {
-            var response = _DBService.GetGamesAsync(user).Result;
-            var jsonResponse = JsonConvert.SerializeObject(response);
-            return jsonResponse;
+            try
+            {
+                var response = _DBService.GetGamesAsync(user).Result;
+                var jsonResponse = JsonConvert.SerializeObject(response);
+                return jsonResponse;
+            } catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return "";
+            }
         }
-        [HttpGet]
-        public string Hello()
+
+        [HttpPost]
+        [Route("AddNewGame")]
+        public HttpStatusCode PostNewGame(string user, Game game)
         {
-            return "hello";
+            try
+            {
+                _DBService.SimpleUpsert(user, game);
+                return HttpStatusCode.OK;
+            } catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return HttpStatusCode.InternalServerError;
+            }
+        }
+
+        [HttpPost]
+        [Route("DeleteGame")]
+        public HttpStatusCode DeleteGame(string user, Game game) 
+        {
+            try
+            {
+                _DBService.SimpleDelete(user, game);
+                return HttpStatusCode.OK;
+            } catch(Exception ex)
+            {
+                Console.WriteLine(ex); 
+                return HttpStatusCode.InternalServerError;
+            }
         }
     }
 }

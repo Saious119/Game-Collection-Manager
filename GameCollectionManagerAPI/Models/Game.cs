@@ -1,27 +1,26 @@
 using System;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
 
 namespace GameCollectionManagerAPI.Models
 {
     public class Game
     {
+        public string name { get; set; } //id primary key = name
 
-        public int id; //primary key
-
-        [BsonElement("Name")]
-        public string name { get; set; }
-
-        [BsonElement("ReleaseDate")]
         public string releaseDate { get; set; }
 
-        [BsonElement("Platform")]
         public string platform { get; set; }
 
-        [BsonElement("MetacriticScore")]
-        public float metacriticScore { get; set; }
+        public string metacriticScore { get; set; }
 
-        [BsonElement("HowLongToBeat")]
-        public float howlong { get; set; }
+        public string howlong { get; set; }
+
+        public Game(string name, string releaseDate, string platform, string metacriticScore, string howlong)
+        {
+            this.name = name;
+            this.releaseDate = releaseDate;
+            this.platform = platform;
+            this.metacriticScore = metacriticScore;
+            this.howlong = howlong;
+        }
     }
 }

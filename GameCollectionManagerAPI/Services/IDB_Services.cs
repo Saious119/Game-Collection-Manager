@@ -4,8 +4,10 @@ namespace GameCollectionManagerAPI
 {
     public interface IDB_Service
     {
-        public Task<List<Game>> GetGamesAsync(string user);
         public string ConnectionStringBuilder();
-        //public void SimpleConnection(string connectString);
+        public Task<List<Game>> GetGamesAsync(string user);
+        public void SimpleUpsert(string user, Game game);
+        public void SimpleDelete(string user, Game game);
+
     }
 }
