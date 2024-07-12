@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Net;
 using GameCollectionManagerAPI.Models;
 using GameCollectionManagerAPI.Services;
@@ -13,10 +14,12 @@ namespace GameCollectionManagerAPI.Controllers
     {
         private ILog log = LogManager.GetLogger(typeof(Program));
         private readonly IDB_Service _DBService;
+        private readonly IMetaCritic_Services _CriticService;
 
-        public GameCollectionController(IDB_Service dB_Services)
+        public GameCollectionController(IDB_Service dB_Services, IMetaCritic_Services openCritic_Services)
         {
             _DBService = dB_Services;
+            _CriticService = openCritic_Services;
         }
 
         [HttpGet("GetCollection/{user}")]
@@ -62,6 +65,14 @@ namespace GameCollectionManagerAPI.Controllers
                 Console.WriteLine(ex); 
                 return HttpStatusCode.InternalServerError;
             }
+        }
+
+        [HttpGet]
+        [Route("GetMetaCriticInfo")]
+        public async Task<MetacriticData> getOpenCriticInfo(string name, string platform)
+        {
+            //return new MetacriticData();
+            return await _CriticService.getMetaCriticInfo(name, platform);
         }
     }
 }

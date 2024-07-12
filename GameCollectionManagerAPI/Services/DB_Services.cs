@@ -11,12 +11,20 @@ namespace GameCollectionManagerAPI.Services
     {
         List<Game> gameList = new List<Game>();
         private ILog log = LogManager.GetLogger(typeof(Program));
+        private readonly IConfiguration _configuration;
+
+        public DB_Services(IConfiguration configuration)
+        {
+            this._configuration = configuration;
+        }
 
         public string ConnectionStringBuilder()
         {
             var connStringBuilder = new NpgsqlConnectionStringBuilder();
             connStringBuilder.SslMode = SslMode.VerifyFull;
-            string? databaseUrlEnv = StaticVariables.GAME_DB_CONNECT_STRING;
+            //string? databaseUrlEnv = StaticVariables.GAME_DB_CONNECT_STRING;
+            string databaseUrlEnv = this._configuration["gamedb_connect_string"];
+            Console.WriteLine(databaseUrlEnv);
             if (databaseUrlEnv == null)
             {
                 Console.WriteLine("Setting DB to Localhost");

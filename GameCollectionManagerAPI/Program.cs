@@ -8,13 +8,26 @@ namespace GameCollectionManagerAPI
     {
         public static void Main(string[] args)
         {
+            var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
             var builder = WebApplication.CreateBuilder(args);
 
             var config = builder.Configuration;
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSingleton<IDB_Service, DB_Services>();
+            builder.Services.AddSingleton<IMetaCritic_Services, MetaCritic_Services>();
             builder.Services.AddSwaggerGen();
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy(name: MyAllowSpecificOrigins,
+                      policy =>
+                      {
+                          policy.WithOrigins("*")
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                      });
+            });
 
             var app = builder.Build();
 
@@ -25,6 +38,7 @@ namespace GameCollectionManagerAPI
             //}
             app.UseSwagger();
             app.UseSwaggerUI();
+            app.UseCors(MyAllowSpecificOrigins);
             app.UseHttpsRedirection();
             app.UseAuthorization();
             app.MapControllers();
