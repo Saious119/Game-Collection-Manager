@@ -82,7 +82,9 @@ namespace GameCollectionManagerAPI.Services
                                     name = reader.GetString(reader.GetOrdinal("name")),
                                     platforms = JsonConvert.DeserializeObject<List<Platforms>>(reader.GetString(reader.GetOrdinal("platforms"))),
                                     summary = reader.GetString(reader.GetOrdinal("summary")),
-                                    multiplayer_mode_flags = JsonConvert.DeserializeObject<MultiplayerModes>(reader.GetString(reader.GetOrdinal("multiplayer_mode_flags")))
+                                    multiplayer_mode_flags = JsonConvert.DeserializeObject<MultiplayerModes>(reader.GetString(reader.GetOrdinal("multiplayer_mode_flags"))),
+                                    howLongToBeat = reader.GetFloat(reader.GetOrdinal("howLongToBeat")),
+                                    status = reader.GetString(reader.GetOrdinal("status"))
                                 };
                                 gameList.Add(gameToAdd);
                             }
@@ -113,17 +115,19 @@ namespace GameCollectionManagerAPI.Services
                     {
                         cmd.Connection = conn;
                         cmd.CommandText = $"UPSERT INTO {user}(Id, Name, AggregatedRating, Cover, ReleaseDates, Genres, InvolvedCompanies, MultiplayerModes, Platforms, Summary, MultiplayerModeFlags) VALUES(@Id, @Name, @AggregatedRating, @Cover, @ReleaseDates, @Genres, @InvolvedCompanies, @MultiplayerModes, @Platforms, @Summary, @MultiplayerModeFlags)";
-                        cmd.Parameters.AddWithValue("Id", game.id);
-                        cmd.Parameters.AddWithValue("Name", game.name);
+                        cmd.Parameters.AddWithValue("id", game.id);
+                        cmd.Parameters.AddWithValue("name", game.name);
                         cmd.Parameters.AddWithValue("aggregated_rating", game.aggregated_rating);
-                        cmd.Parameters.AddWithValue("Cover", game.cover);
+                        cmd.Parameters.AddWithValue("cover", game.cover);
                         cmd.Parameters.AddWithValue("release_dates", JsonConvert.SerializeObject(game.release_dates));
-                        cmd.Parameters.AddWithValue("Genres", JsonConvert.SerializeObject(game.genres));
+                        cmd.Parameters.AddWithValue("genres", JsonConvert.SerializeObject(game.genres));
                         cmd.Parameters.AddWithValue("involved_companies", JsonConvert.SerializeObject(game.involved_companies));
-                        cmd.Parameters.AddWithValue("Mulmultiplayer_modestiplayerModes", JsonConvert.SerializeObject(game.multiplayer_modes));
-                        cmd.Parameters.AddWithValue("Platforms", JsonConvert.SerializeObject(game.platforms));
-                        cmd.Parameters.AddWithValue("Summary", game.summary);
-                        cmd.Parameters.AddWithValue("MultiplayerModeFlags", JsonConvert.SerializeObject(game.multiplayer_mode_flags));
+                        cmd.Parameters.AddWithValue("multiplayer_modes", JsonConvert.SerializeObject(game.multiplayer_modes));
+                        cmd.Parameters.AddWithValue("platforms", JsonConvert.SerializeObject(game.platforms));
+                        cmd.Parameters.AddWithValue("summary", game.summary);
+                        cmd.Parameters.AddWithValue("multiplayer_mode_flags", JsonConvert.SerializeObject(game.multiplayer_mode_flags));
+                        cmd.Parameters.AddWithValue("howLongToBeat", game.howLongToBeat);
+                        cmd.Parameters.AddWithValue("status", game.status);
                         cmd.ExecuteNonQuery();
                     }
                 }

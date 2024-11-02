@@ -15,6 +15,8 @@ namespace GameCollectionManagerAPI.Models
         public List<ReleaseDates> release_dates { get; set; }
         public string summary { get; set; }
         public MultiplayerModes multiplayer_mode_flags { get; set; }
+        public float howLongToBeat {  get; set; }
+        public string status { get; set; }
     }
     public class InvolvedCompanies
     {
