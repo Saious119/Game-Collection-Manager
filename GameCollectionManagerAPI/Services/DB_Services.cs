@@ -4,6 +4,7 @@ using GameCollectionManagerAPI.Models;
 using System.Data;
 using System.Net.Security;
 using Npgsql;
+using Newtonsoft.Json;
 
 namespace GameCollectionManagerAPI.Services
 {
@@ -69,8 +70,20 @@ namespace GameCollectionManagerAPI.Services
                         {
                             while (reader.Read())
                             {
-                                //Console.WriteLine("{0}\n{1}\n{2}\n{3}\n{4}\n{5}",reader.GetValue(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5));
-                                Game gameToAdd = new Game(reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetString(5));
+                                Game gameToAdd = new Game
+                                {
+                                    id = reader.GetInt32(reader.GetOrdinal("id")),
+                                    aggregated_rating = reader.GetFloat(reader.GetOrdinal("aggregated_rating")),
+                                    cover = reader.GetInt32(reader.GetOrdinal("cover")),
+                                    release_dates = JsonConvert.DeserializeObject<List<ReleaseDates>>(reader.GetString(reader.GetOrdinal("release_dates"))),
+                                    genres = JsonConvert.DeserializeObject<List<Genre>>(reader.GetString(reader.GetOrdinal("genres"))),
+                                    involved_companies = JsonConvert.DeserializeObject<List<InvolvedCompanies>>(reader.GetString(reader.GetOrdinal("involved_companies"))),
+                                    multiplayer_modes = JsonConvert.DeserializeObject<List<int>>(reader.GetString(reader.GetOrdinal("multiplayer_modes"))),
+                                    name = reader.GetString(reader.GetOrdinal("name")),
+                                    platforms = JsonConvert.DeserializeObject<List<Platforms>>(reader.GetString(reader.GetOrdinal("platforms"))),
+                                    summary = reader.GetString(reader.GetOrdinal("summary")),
+                                    multiplayer_mode_flags = JsonConvert.DeserializeObject<MultiplayerModes>(reader.GetString(reader.GetOrdinal("multiplayer_mode_flags")))
+                                };
                                 gameList.Add(gameToAdd);
                             }
                         }
@@ -92,20 +105,25 @@ namespace GameCollectionManagerAPI.Services
                 using (var conn = new NpgsqlConnection(connectString))
                 {
                     conn.Open();
-                    using (var cmd = new NpgsqlCommand($"CREATE TABLE IF NOT EXISTS {user} (id STRING PRIMARY KEY, name STRING, releaseDate STRING, platform STRING, metacriticScore STRING, howlong STRING)", conn))
+                    using (var cmd = new NpgsqlCommand($"CREATE TABLE IF NOT EXISTS {user} (Id INTEGER PRIMARY KEY, Name VARCHAR, AggregatedRating REAL, Cover INTEGER, ReleaseDates JSONB, Genres JSONB, InvolvedCompanies JSONB, MultiplayerModes JSONB, Platforms JSONB, Summary VARCHAR, MultiplayerModeFlags JSONB)", conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
                     using (var cmd = new NpgsqlCommand(""))
                     {
                         cmd.Connection = conn;
-                        cmd.CommandText = $"UPSERT INTO {user}(id, name, releaseDate, platform, metacriticScore, howlong) VALUES(@id1, @val1, @val2, @val3, @val4, @val5)";
-                        cmd.Parameters.AddWithValue("id1", game.name);
-                        cmd.Parameters.AddWithValue("val1", game.name);
-                        cmd.Parameters.AddWithValue("val2", game.releaseDate);
-                        cmd.Parameters.AddWithValue("val3", game.platform);
-                        cmd.Parameters.AddWithValue("val4", game.metacriticScore);
-                        cmd.Parameters.AddWithValue("val5", game.howlong);
+                        cmd.CommandText = $"UPSERT INTO {user}(Id, Name, AggregatedRating, Cover, ReleaseDates, Genres, InvolvedCompanies, MultiplayerModes, Platforms, Summary, MultiplayerModeFlags) VALUES(@Id, @Name, @AggregatedRating, @Cover, @ReleaseDates, @Genres, @InvolvedCompanies, @MultiplayerModes, @Platforms, @Summary, @MultiplayerModeFlags)";
+                        cmd.Parameters.AddWithValue("Id", game.id);
+                        cmd.Parameters.AddWithValue("Name", game.name);
+                        cmd.Parameters.AddWithValue("aggregated_rating", game.aggregated_rating);
+                        cmd.Parameters.AddWithValue("Cover", game.cover);
+                        cmd.Parameters.AddWithValue("release_dates", JsonConvert.SerializeObject(game.release_dates));
+                        cmd.Parameters.AddWithValue("Genres", JsonConvert.SerializeObject(game.genres));
+                        cmd.Parameters.AddWithValue("involved_companies", JsonConvert.SerializeObject(game.involved_companies));
+                        cmd.Parameters.AddWithValue("Mulmultiplayer_modestiplayerModes", JsonConvert.SerializeObject(game.multiplayer_modes));
+                        cmd.Parameters.AddWithValue("Platforms", JsonConvert.SerializeObject(game.platforms));
+                        cmd.Parameters.AddWithValue("Summary", game.summary);
+                        cmd.Parameters.AddWithValue("MultiplayerModeFlags", JsonConvert.SerializeObject(game.multiplayer_mode_flags));
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -124,7 +142,7 @@ namespace GameCollectionManagerAPI.Services
                 using(var conn = new NpgsqlConnection(connectString))
                 {
                     conn.Open();
-                    using(var cmd = new NpgsqlCommand($"DELETE FROM {user} WHERE id='{game.name}'", conn))
+                    using(var cmd = new NpgsqlCommand($"DELETE FROM {user} WHERE id='{game.id}'", conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
