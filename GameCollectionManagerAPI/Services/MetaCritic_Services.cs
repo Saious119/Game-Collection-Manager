@@ -32,7 +32,6 @@ namespace GameCollectionManagerAPI.Services
                 response.EnsureSuccessStatusCode();
                 var body = await response.Content.ReadAsStringAsync();
                 MetacriticData results = JsonConvert.DeserializeObject<MetacriticData>(body);
-                Console.WriteLine(body);
                 return results;
             }
         }

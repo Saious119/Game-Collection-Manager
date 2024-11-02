@@ -363,4 +363,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 GameCollectionManagerAPI/Properties/launchSettings.json
+.DS_Store
 /.idea/.idea.GameCollectionManagerAPI/.idea
