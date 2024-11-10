@@ -72,19 +72,20 @@ namespace GameCollectionManagerAPI.Services
                             {
                                 Game gameToAdd = new Game
                                 {
-                                    id = reader.GetInt32(reader.GetOrdinal("id")),
-                                    aggregated_rating = reader.GetFloat(reader.GetOrdinal("aggregated_rating")),
-                                    cover = reader.GetInt32(reader.GetOrdinal("cover")),
-                                    release_dates = JsonConvert.DeserializeObject<List<ReleaseDates>>(reader.GetString(reader.GetOrdinal("release_dates"))),
-                                    genres = JsonConvert.DeserializeObject<List<Genre>>(reader.GetString(reader.GetOrdinal("genres"))),
-                                    involved_companies = JsonConvert.DeserializeObject<List<InvolvedCompanies>>(reader.GetString(reader.GetOrdinal("involved_companies"))),
-                                    multiplayer_modes = JsonConvert.DeserializeObject<List<int>>(reader.GetString(reader.GetOrdinal("multiplayer_modes"))),
-                                    name = reader.GetString(reader.GetOrdinal("name")),
-                                    platforms = JsonConvert.DeserializeObject<List<Platforms>>(reader.GetString(reader.GetOrdinal("platforms"))),
-                                    summary = reader.GetString(reader.GetOrdinal("summary")),
-                                    multiplayer_mode_flags = JsonConvert.DeserializeObject<MultiplayerModes>(reader.GetString(reader.GetOrdinal("multiplayer_mode_flags"))),
-                                    howLongToBeat = reader.GetFloat(reader.GetOrdinal("howLongToBeat")),
-                                    status = reader.GetString(reader.GetOrdinal("status"))
+                                    id = reader.GetInt32(reader.GetOrdinal("Id")),
+                                    aggregated_rating = reader.GetFloat(reader.GetOrdinal("AggregatedRating")),
+                                    cover = reader.GetInt32(reader.GetOrdinal("Cover")),
+                                    release_dates = JsonConvert.DeserializeObject<List<ReleaseDates>>(reader.GetString(reader.GetOrdinal("ReleaseDates"))),
+                                    genres = JsonConvert.DeserializeObject<List<Genre>>(reader.GetString(reader.GetOrdinal("Genres"))),
+                                    involved_companies = JsonConvert.DeserializeObject<List<InvolvedCompanies>>(reader.GetString(reader.GetOrdinal("InvolvedCompanies"))),
+                                    multiplayer_modes = JsonConvert.DeserializeObject<List<int>>(reader.GetString(reader.GetOrdinal("MultiplayerModes"))),
+                                    name = reader.GetString(reader.GetOrdinal("Name")),
+                                    platforms = JsonConvert.DeserializeObject<List<Platforms>>(reader.GetString(reader.GetOrdinal("Platforms"))),
+                                    summary = reader.GetString(reader.GetOrdinal("Summary")),
+                                    multiplayer_mode_flags = JsonConvert.DeserializeObject<MultiplayerModes>(reader.GetString(reader.GetOrdinal("MultiplayerModeFlags"))),
+                                    howLongToBeat = reader.GetFloat(reader.GetOrdinal("HowLongToBeat")),
+                                    metacriticScore = reader.GetFloat(reader.GetOrdinal("MetacriticScore")),
+                                    status = reader.GetString(reader.GetOrdinal("Status"))
                                 };
                                 gameList.Add(gameToAdd);
                             }
@@ -107,27 +108,28 @@ namespace GameCollectionManagerAPI.Services
                 using (var conn = new NpgsqlConnection(connectString))
                 {
                     conn.Open();
-                    using (var cmd = new NpgsqlCommand($"CREATE TABLE IF NOT EXISTS {user} (Id INTEGER PRIMARY KEY, Name VARCHAR, AggregatedRating REAL, Cover INTEGER, ReleaseDates JSONB, Genres JSONB, InvolvedCompanies JSONB, MultiplayerModes JSONB, Platforms JSONB, Summary VARCHAR, MultiplayerModeFlags JSONB)", conn))
+                    using (var cmd = new NpgsqlCommand($"CREATE TABLE IF NOT EXISTS {user} (Id INTEGER PRIMARY KEY, Name VARCHAR, AggregatedRating REAL, Cover INTEGER, ReleaseDates JSONB, Genres JSONB, InvolvedCompanies JSONB, MultiplayerModes JSONB, Platforms JSONB, Summary VARCHAR, MultiplayerModeFlags JSONB, howLongToBeat REAL, metacriticScore REAL, status VARCHAR)", conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
                     using (var cmd = new NpgsqlCommand(""))
                     {
                         cmd.Connection = conn;
-                        cmd.CommandText = $"UPSERT INTO {user}(Id, Name, AggregatedRating, Cover, ReleaseDates, Genres, InvolvedCompanies, MultiplayerModes, Platforms, Summary, MultiplayerModeFlags) VALUES(@Id, @Name, @AggregatedRating, @Cover, @ReleaseDates, @Genres, @InvolvedCompanies, @MultiplayerModes, @Platforms, @Summary, @MultiplayerModeFlags)";
-                        cmd.Parameters.AddWithValue("id", game.id);
-                        cmd.Parameters.AddWithValue("name", game.name);
-                        cmd.Parameters.AddWithValue("aggregated_rating", game.aggregated_rating);
-                        cmd.Parameters.AddWithValue("cover", game.cover);
-                        cmd.Parameters.AddWithValue("release_dates", JsonConvert.SerializeObject(game.release_dates));
-                        cmd.Parameters.AddWithValue("genres", JsonConvert.SerializeObject(game.genres));
-                        cmd.Parameters.AddWithValue("involved_companies", JsonConvert.SerializeObject(game.involved_companies));
-                        cmd.Parameters.AddWithValue("multiplayer_modes", JsonConvert.SerializeObject(game.multiplayer_modes));
-                        cmd.Parameters.AddWithValue("platforms", JsonConvert.SerializeObject(game.platforms));
-                        cmd.Parameters.AddWithValue("summary", game.summary);
-                        cmd.Parameters.AddWithValue("multiplayer_mode_flags", JsonConvert.SerializeObject(game.multiplayer_mode_flags));
-                        cmd.Parameters.AddWithValue("howLongToBeat", game.howLongToBeat);
-                        cmd.Parameters.AddWithValue("status", game.status);
+                        cmd.CommandText = $"UPSERT INTO {user}(Id, Name, AggregatedRating, Cover, ReleaseDates, Genres, InvolvedCompanies, MultiplayerModes, Platforms, Summary, MultiplayerModeFlags, HowLongToBeat, MetacriticScore, Status) VALUES(@Id, @Name, @AggregatedRating, @Cover, @ReleaseDates, @Genres, @InvolvedCompanies, @MultiplayerModes, @Platforms, @Summary, @MultiplayerModeFlags, @HowLongToBeat, @MetacriticScore, @Status)";
+                        cmd.Parameters.AddWithValue("Id", game.id);
+                        cmd.Parameters.AddWithValue("Name", game.name);
+                        cmd.Parameters.AddWithValue("AggregatedRating", game.aggregated_rating);
+                        cmd.Parameters.AddWithValue("Cover", game.cover);
+                        cmd.Parameters.AddWithValue("ReleaseDates", JsonConvert.SerializeObject(game.release_dates));
+                        cmd.Parameters.AddWithValue("Genres", JsonConvert.SerializeObject(game.genres));
+                        cmd.Parameters.AddWithValue("InvolvedCompanies", JsonConvert.SerializeObject(game.involved_companies));
+                        cmd.Parameters.AddWithValue("MultiplayerModes", JsonConvert.SerializeObject(game.multiplayer_modes));
+                        cmd.Parameters.AddWithValue("Platforms", JsonConvert.SerializeObject(game.platforms));
+                        cmd.Parameters.AddWithValue("Summary", game.summary);
+                        cmd.Parameters.AddWithValue("MultiplayerModeFlags", JsonConvert.SerializeObject(game.multiplayer_mode_flags));
+                        cmd.Parameters.AddWithValue("HowLongToBeat", game.howLongToBeat);
+                        cmd.Parameters.AddWithValue("MetacriticScore", game.metacriticScore);
+                        cmd.Parameters.AddWithValue("Status", game.status);
                         cmd.ExecuteNonQuery();
                     }
                 }

@@ -39,8 +39,14 @@ namespace GameCollectionManagerAPI.Controllers
 
         [HttpPost]
         [Route("AddNewGame")]
-        public HttpStatusCode PostNewGame(string user, Game game)
+        public HttpStatusCode PostNewGame(string user, [FromBody] Game game)
         {
+            Console.WriteLine("Adding a new Game!");
+            if(game == null)
+            {
+                Console.WriteLine("You didn't send a game");
+                return HttpStatusCode.BadRequest;
+            }
             try
             {
                 _DBService.SimpleUpsert(user, game);
