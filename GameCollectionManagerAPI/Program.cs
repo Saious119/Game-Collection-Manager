@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using GameCollectionManagerAPI.Services;
+using GameCollectionManagerAPI.Data;
+using AutoMapper;
 
 namespace GameCollectionManagerAPI
 {
@@ -13,6 +15,8 @@ namespace GameCollectionManagerAPI
             var builder = WebApplication.CreateBuilder(args);
 
             var config = builder.Configuration;
+            builder.Services.AddDbContext<DataContext>();
+            builder.Services.AddAutoMapper(typeof(Program));
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSingleton<IDB_Service, DB_Services>();

@@ -23,53 +23,57 @@ namespace GameCollectionManagerAPI.Controllers
         }
 
         [HttpGet("GetCollection/{user}")]
-        public string GetCollection(string user)
+        public async Task<IActionResult> GetCollection(string user)
         {
             try
             {
-                var response = _DBService.GetGamesAsync(user).Result;
+                var response = await _DBService.GetGamesAsync(user);
                 var jsonResponse = JsonConvert.SerializeObject(response);
-                return jsonResponse;
+                return Ok(jsonResponse);
             } catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return "";
+                return StatusCode(500, "Failed to Get Info For User: " + user);
             }
         }
 
         [HttpPost]
         [Route("AddNewGame")]
-        public HttpStatusCode PostNewGame(string user, [FromBody] Game game)
+        public async Task<IActionResult> PostNewGame([FromBody] Game game, string user)
         {
             Console.WriteLine("Adding a new Game!");
             if(game == null)
             {
                 Console.WriteLine("You didn't send a game");
-                return HttpStatusCode.BadRequest;
+                return StatusCode(400, "You didn't send a game");
             }
             try
             {
-                _DBService.SimpleUpsert(user, game);
-                return HttpStatusCode.OK;
+                GameDAO gameDAO = game.ToGameDao();
+                gameDAO.owner = user;
+                await _DBService.SimpleUpsert(gameDAO);
+                return Ok();
             } catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return HttpStatusCode.InternalServerError;
+                return StatusCode(500, "Failed to Add New Game");
             }
         }
 
         [HttpPost]
         [Route("DeleteGame")]
-        public HttpStatusCode DeleteGame(string user, Game game) 
+        public async Task<IActionResult> DeleteGame([FromBody] Game game, string user) 
         {
             try
             {
-                _DBService.SimpleDelete(user, game);
-                return HttpStatusCode.OK;
+                GameDAO gameDAO = game.ToGameDao();
+                gameDAO.owner = user;
+                await _DBService.SimpleDelete(gameDAO);
+                return Ok();
             } catch(Exception ex)
             {
                 Console.WriteLine(ex); 
-                return HttpStatusCode.InternalServerError;
+                return StatusCode(500, "Failed to Delete Game");
             }
         }
 

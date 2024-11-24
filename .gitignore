@@ -365,3 +365,4 @@ FodyWeavers.xsd
 GameCollectionManagerAPI/Properties/launchSettings.json
 .DS_Store
 /.idea/.idea.GameCollectionManagerAPI/.idea
+/ExampleData

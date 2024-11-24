@@ -5,158 +5,81 @@ using System.Data;
 using System.Net.Security;
 using Npgsql;
 using Newtonsoft.Json;
+using GameCollectionManagerAPI.Data;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 
 namespace GameCollectionManagerAPI.Services
 {
     public class DB_Services : IDB_Service
     {
-        List<Game> gameList = new List<Game>();
+        List<GameDAO> gameList = new List<GameDAO>();
         private ILog log = LogManager.GetLogger(typeof(Program));
         private readonly IConfiguration _configuration;
+        private DataContext _context;
+        private IMapper _mapper;
 
-        public DB_Services(IConfiguration configuration)
+        public DB_Services(IConfiguration configuration, DataContext dataContext, IMapper mapper)
         {
             this._configuration = configuration;
+            _context = dataContext;
+            _mapper = mapper;
         }
 
-        public string ConnectionStringBuilder()
+        public async Task<List<GameDAO>> GetGamesAsync(string user)
         {
-            var connStringBuilder = new NpgsqlConnectionStringBuilder();
-            connStringBuilder.SslMode = SslMode.VerifyFull;
-            //string? databaseUrlEnv = StaticVariables.GAME_DB_CONNECT_STRING;
-            string databaseUrlEnv = this._configuration["gamedb_connect_string"];
-            Console.WriteLine(databaseUrlEnv);
-            if (databaseUrlEnv == null)
-            {
-                Console.WriteLine("Setting DB to Localhost");
-                connStringBuilder.Host = "localhost";
-                connStringBuilder.Port = 26257;
-                connStringBuilder.Username = "username";
-                connStringBuilder.Passfile = "password";
-                connStringBuilder.IncludeErrorDetail = true;
-            }
-            else
-            {
-                Console.WriteLine("Found Environment DB Connect String");
-                Uri databaseUrl = new Uri(databaseUrlEnv);
-                connStringBuilder.Host = databaseUrl.Host;
-                connStringBuilder.Port = databaseUrl.Port;
-                var items = databaseUrl.UserInfo.Split(new[] { ':' });
-                if (items.Length > 0) { connStringBuilder.Username = items[0]; }
-                if (items.Length > 1) { connStringBuilder.Password = items[1]; }
-                connStringBuilder.IncludeErrorDetail = true;
-            }
-            connStringBuilder.Database = "gamedb";
-            Console.WriteLine("Going to connect");
-            return connStringBuilder.ToString();
-        }
-        public async Task<List<Game>> GetGamesAsync(string user)
-        {
-            if (user == null)
-            {
-                user = "NoUser";
-            }
-            //Connect to CockroachDB for Data
-            string connectString = ConnectionStringBuilder();
             try
             {
-                gameList = new List<Game>();
-                using (var conn = new NpgsqlConnection(connectString))
+                if (user == null)
                 {
-                    conn.Open();
-                    using (var cmd = new NpgsqlCommand($"SELECT * FROM {user}", conn))
-                    {
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                Game gameToAdd = new Game
-                                {
-                                    id = reader.GetInt32(reader.GetOrdinal("Id")),
-                                    aggregated_rating = reader.GetFloat(reader.GetOrdinal("AggregatedRating")),
-                                    cover = reader.GetInt32(reader.GetOrdinal("Cover")),
-                                    release_dates = JsonConvert.DeserializeObject<List<ReleaseDates>>(reader.GetString(reader.GetOrdinal("ReleaseDates"))),
-                                    genres = JsonConvert.DeserializeObject<List<Genre>>(reader.GetString(reader.GetOrdinal("Genres"))),
-                                    involved_companies = JsonConvert.DeserializeObject<List<InvolvedCompanies>>(reader.GetString(reader.GetOrdinal("InvolvedCompanies"))),
-                                    multiplayer_modes = JsonConvert.DeserializeObject<List<int>>(reader.GetString(reader.GetOrdinal("MultiplayerModes"))),
-                                    name = reader.GetString(reader.GetOrdinal("Name")),
-                                    platforms = JsonConvert.DeserializeObject<List<Platforms>>(reader.GetString(reader.GetOrdinal("Platforms"))),
-                                    summary = reader.GetString(reader.GetOrdinal("Summary")),
-                                    multiplayer_mode_flags = JsonConvert.DeserializeObject<MultiplayerModes>(reader.GetString(reader.GetOrdinal("MultiplayerModeFlags"))),
-                                    howLongToBeat = reader.GetFloat(reader.GetOrdinal("HowLongToBeat")),
-                                    metacriticScore = reader.GetFloat(reader.GetOrdinal("MetacriticScore")),
-                                    status = reader.GetString(reader.GetOrdinal("Status"))
-                                };
-                                gameList.Add(gameToAdd);
-                            }
-                        }
-                    }
+                    user = "NoUser";
                 }
-                return gameList;
+                return await _context.Games.Where(c => c.owner == user).ToListAsync();
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                return new List<Game>();
+                return new List<GameDAO>();
             }
         }
-        public void SimpleUpsert(string user, Game game)
+        public async Task CreateTable(GameDAO game)
         {
             try
             {
-                string connectString = ConnectionStringBuilder();
-                using (var conn = new NpgsqlConnection(connectString))
-                {
-                    conn.Open();
-                    using (var cmd = new NpgsqlCommand($"CREATE TABLE IF NOT EXISTS {user} (Id INTEGER PRIMARY KEY, Name VARCHAR, AggregatedRating REAL, Cover INTEGER, ReleaseDates JSONB, Genres JSONB, InvolvedCompanies JSONB, MultiplayerModes JSONB, Platforms JSONB, Summary VARCHAR, MultiplayerModeFlags JSONB, howLongToBeat REAL, metacriticScore REAL, status VARCHAR)", conn))
-                    {
-                        cmd.ExecuteNonQuery();
-                    }
-                    using (var cmd = new NpgsqlCommand(""))
-                    {
-                        cmd.Connection = conn;
-                        cmd.CommandText = $"UPSERT INTO {user}(Id, Name, AggregatedRating, Cover, ReleaseDates, Genres, InvolvedCompanies, MultiplayerModes, Platforms, Summary, MultiplayerModeFlags, HowLongToBeat, MetacriticScore, Status) VALUES(@Id, @Name, @AggregatedRating, @Cover, @ReleaseDates, @Genres, @InvolvedCompanies, @MultiplayerModes, @Platforms, @Summary, @MultiplayerModeFlags, @HowLongToBeat, @MetacriticScore, @Status)";
-                        cmd.Parameters.AddWithValue("Id", game.id);
-                        cmd.Parameters.AddWithValue("Name", game.name);
-                        cmd.Parameters.AddWithValue("AggregatedRating", game.aggregated_rating);
-                        cmd.Parameters.AddWithValue("Cover", game.cover);
-                        cmd.Parameters.AddWithValue("ReleaseDates", JsonConvert.SerializeObject(game.release_dates));
-                        cmd.Parameters.AddWithValue("Genres", JsonConvert.SerializeObject(game.genres));
-                        cmd.Parameters.AddWithValue("InvolvedCompanies", JsonConvert.SerializeObject(game.involved_companies));
-                        cmd.Parameters.AddWithValue("MultiplayerModes", JsonConvert.SerializeObject(game.multiplayer_modes));
-                        cmd.Parameters.AddWithValue("Platforms", JsonConvert.SerializeObject(game.platforms));
-                        cmd.Parameters.AddWithValue("Summary", game.summary);
-                        cmd.Parameters.AddWithValue("MultiplayerModeFlags", JsonConvert.SerializeObject(game.multiplayer_mode_flags));
-                        cmd.Parameters.AddWithValue("HowLongToBeat", game.howLongToBeat);
-                        cmd.Parameters.AddWithValue("MetacriticScore", game.metacriticScore);
-                        cmd.Parameters.AddWithValue("Status", game.status);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
+                _context.Add(game);
+                _context.SaveChanges();
             }
-            catch (Exception e)
+            catch(Exception e)
             {
-                Console.WriteLine(e);
-                throw e;
+                Console.WriteLine("Error Creating Table: " + e);
+                throw new Exception("Failed to Create New Table");
             }
         }
-        public void SimpleDelete(string user, Game game)
+        public async Task SimpleUpsert(GameDAO game)
         {
-            try
+            var gameToUpdate = await _context.Games.Where(c => c.id == game.id && c.owner == game.owner).FirstOrDefaultAsync();
+            if(gameToUpdate == null)
             {
-                string connectString = ConnectionStringBuilder();
-                using(var conn = new NpgsqlConnection(connectString))
-                {
-                    conn.Open();
-                    using(var cmd = new NpgsqlCommand($"DELETE FROM {user} WHERE id='{game.id}'", conn))
-                    {
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-            } catch (Exception e)
+                await CreateTable(game);
+                return;
+            }
+            else
             {
-                Console.WriteLine(e);
-                throw e;
+                _context.Entry(gameToUpdate).CurrentValues.SetValues(game);
+                await _context.SaveChangesAsync();
+            }
+        }
+        public async Task SimpleDelete(GameDAO game)
+        {
+            var gameToRemove = await _context.Games.Where(c => c.id == game.id && c.owner == game.owner).FirstOrDefaultAsync();
+            if(gameToRemove == null)
+            {
+                throw new Exception("No Game Found");
+            }
+            else
+            {
+                _context.Games.Remove(gameToRemove);
+                await _context.SaveChangesAsync();
             }
         }
     }

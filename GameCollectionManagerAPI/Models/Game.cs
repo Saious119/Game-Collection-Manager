@@ -1,7 +1,11 @@
+using Newtonsoft.Json;
 using System;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace GameCollectionManagerAPI.Models
-{
+{   
+    //The Following classes come from the API calls
     public class Game
     {
         public int id { get; set; }
@@ -18,6 +22,49 @@ namespace GameCollectionManagerAPI.Models
         public float howLongToBeat { get; set; }
         public float metacriticScore { get; set; }
         public string status { get; set; }
+        public GameDAO ToGameDao()
+        {
+            GameDAO dao = new GameDAO();
+            //bring over the straight conversions
+            dao.id = id;
+            dao.aggregatedrating = aggregated_rating;
+            dao.cover = cover;
+            dao.summary = summary;
+            dao.name = name;
+            dao.howlongtobeat = howLongToBeat;
+            dao.metacriticscore = metacriticScore;
+            dao.status = status;
+            //convert the classes to primitives for DAO
+            dao.genres = "";
+            foreach (var item in genres)
+            {
+                dao.genres += item.Name+",";
+            }
+            dao.involvedcompanies = "";
+            foreach(var item in involved_companies)
+            {
+                dao.involvedcompanies += item.company.name + ",";
+            }
+            dao.multiplayermodes = "";
+            foreach(var item in multiplayer_modes)
+            {
+                dao.multiplayermodes += item.ToString() + ",";
+            }
+            dao.platforms = "";
+            foreach (var item in platforms)
+            {
+                dao.platforms += item.name + ",";
+            }
+            dao.releasedates = "";
+            foreach(var item in release_dates)
+            {
+                dao.releasedates += item.human + ",";
+            }
+            dao.multiplayermodes = JsonConvert.SerializeObject(multiplayer_modes);
+
+
+            return dao;
+        }
     }
     public class InvolvedCompanies
     {
