@@ -1,4 +1,4 @@
-using GameCollectionManagerAPI.Models;
+using GameCollectionManager.Shared.Models;
 
 namespace GameCollectionManagerAPI
 {

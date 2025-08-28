@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GameCollectionManagerAPI.Models
+namespace GameCollectionManager.Shared.Models
 {
     public class MetacriticData
     {

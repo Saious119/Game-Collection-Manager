@@ -1,4 +1,4 @@
-﻿using GameCollectionManagerAPI.Models;
+﻿using GameCollectionManager.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 

@@ -1,4 +1,4 @@
-﻿using GameCollectionManagerAPI.Models;
+﻿using GameCollectionManager.Shared.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -16,12 +16,12 @@ namespace GameCollectionManagerAPI
 
             var config = builder.Configuration;
             builder.Services.AddDbContext<DataContext>();
-            builder.Services.AddAutoMapper(typeof(Program));
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSingleton<IDB_Service, DB_Services>();
             builder.Services.AddSingleton<IMetaCritic_Services, MetaCritic_Services>();
             builder.Services.AddSingleton<IIGDB_Service, IGDB_Service>();
+            builder.Services.AddSingleton<StaticVariables>();
             builder.Services.AddSwaggerGen();
             builder.Services.AddCors(options =>
             {
@@ -36,11 +36,11 @@ namespace GameCollectionManagerAPI
 
             var app = builder.Build();
 
-            //if (app.Environment.IsDevelopment())
-            //{
-            //    app.UseSwagger();
-            //    app.UseSwaggerUI();
-            //}
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
             app.UseSwagger();
             app.UseSwaggerUI();
             app.UseCors(MyAllowSpecificOrigins);

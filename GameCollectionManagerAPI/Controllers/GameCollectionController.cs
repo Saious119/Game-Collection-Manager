@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Net;
-using GameCollectionManagerAPI.Models;
+using GameCollectionManager.Shared.Models;
 using GameCollectionManagerAPI.Services;
 using log4net;
 using Microsoft.AspNetCore.Mvc;

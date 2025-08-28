@@ -1,6 +1,6 @@
 using System;
 using log4net;
-using GameCollectionManagerAPI.Models;
+using GameCollectionManager.Shared.Models;
 using System.Data;
 using System.Net.Security;
 using Npgsql;

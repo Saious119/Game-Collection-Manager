@@ -1,4 +1,4 @@
-﻿namespace GameCollectionManagerAPI.Models
+﻿namespace GameCollectionManager.Shared.Models
 {
     public class GameDAO
     {

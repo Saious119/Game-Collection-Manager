@@ -3,7 +3,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
-namespace GameCollectionManagerAPI.Models
+namespace GameCollectionManager.Shared.Models
 {   
     //The Following classes come from the API calls
     public class Game
