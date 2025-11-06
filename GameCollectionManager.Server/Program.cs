@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using GameCollectionManagerAPI.Services;
 using GameCollectionManagerAPI.Data;
-using AutoMapper;
 
 namespace GameCollectionManagerAPI
 {

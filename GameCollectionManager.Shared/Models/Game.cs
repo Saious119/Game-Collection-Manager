@@ -22,6 +22,7 @@ namespace GameCollectionManager.Shared.Models
         public float howLongToBeat { get; set; }
         public float metacriticScore { get; set; }
         public string status { get; set; }
+        public int? queuepos { get; set; }
         public GameDAO ToGameDao()
         {
             GameDAO dao = new GameDAO();

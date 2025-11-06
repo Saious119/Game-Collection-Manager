@@ -1,0 +1,192 @@
+@using GameCollectionManager.Shared.Models
+@using MudBlazor
+@using Newtonsoft.Json
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog DisableSidePadding="true">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="px-4">Search Game</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 500px; overflow-y: auto" Class="px-4">
+            @if (!_searched)
+            {
+                <MudTextField @bind-Value="_searchTerm" 
+                             Label="Game Name" 
+                             Variant="Variant.Outlined"
+                             Immediate="true"
+                             @onkeyup="@(async (e) => { if (e.Key == "Enter") await SearchGame(); })" />
+                <MudButton Color="Color.Primary" 
+                          Variant="Variant.Filled" 
+                          OnClick="SearchGame" 
+                          Disabled="@(_processing || string.IsNullOrWhiteSpace(_searchTerm))"
+                          Class="mt-4">
+                    @if (_processing)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true"/>
+                        <MudText Class="ms-2">Searching...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Search</MudText>
+                    }
+                </MudButton>
+            }
+            else if (_searchResults != null && _searchResults.Any())
+            {
+                <MudList T="Game" Dense="true"
+						 DisableGutters="true">
+                    @foreach (var game in _searchResults)
+                    {
+                        <MudListItem>
+                            <MudCard Elevation="0">
+                                <MudCardContent>
+                                    <MudText Typo="Typo.h6">@game.name</MudText>
+                                    <MudText Typo="Typo.body2">Platform: @GetPlatforms(game)</MudText>
+                                    <MudText Typo="Typo.body2">Release Date: @GetReleaseDate(game)</MudText>
+                                    @if (!string.IsNullOrEmpty(game.summary))
+                                    {
+                                        <MudText Typo="Typo.body2" Style="max-height: 100px; overflow-y: auto">
+                                            @game.summary
+                                        </MudText>
+                                    }
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Color="Color.Primary" 
+                                              Variant="Variant.Filled"
+                                              OnClick="@(() => SelectGame(game))">
+                                        Select
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudListItem>
+                    }
+                </MudList>
+                <MudButton Color="Color.Secondary" 
+                          OnClick="ResetSearch" 
+                          Class="mt-4">
+                    New Search
+                </MudButton>
+            }
+            else if (_searched)
+            {
+                <MudAlert Severity="Severity.Info">No games found. Try a different search term.</MudAlert>
+                <MudButton Color="Color.Secondary" 
+                          OnClick="ResetSearch" 
+                          Class="mt-4">
+                    Try Again
+                </MudButton>
+            }
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private string _searchTerm = "";
+    private bool _processing;
+    private bool _searched;
+    private List<Game> _searchResults = new();
+
+    protected override void OnInitialized()
+    {
+        if (MudDialog is null)
+        {
+            throw new ArgumentNullException(nameof(MudDialog), "MudDialogInstance not injected");
+        }
+    }
+
+    private async Task SearchGame()
+    {
+        if (string.IsNullOrWhiteSpace(_searchTerm)) return;
+
+        try
+        {
+            _processing = true;
+            StateHasChanged();
+
+            var response = await Http.GetFromJsonAsync<List<Game>>($"api/IGDB/Search?name={Uri.EscapeDataString(_searchTerm)}");
+            _searchResults = response ?? new();
+            _searched = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error searching for games: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ResetSearch()
+    {
+        _searchTerm = "";
+        _searched = false;
+        _searchResults = new();
+        StateHasChanged();
+    }
+
+    private void SelectGame(Game game)
+    {
+        try
+        {
+            string gameplatforms = GetPlatforms(game);
+
+			string genres = GetGenres(game);
+
+            var gameDao = new GameDAO
+            {
+                id = game.id,
+                name = game.name ?? "Unknown",
+                platforms = gameplatforms,
+                releasedates = game.release_dates?.FirstOrDefault()?.human ?? "",
+                genres = genres,
+                summary = game.summary ?? "",
+                aggregatedrating = game.aggregated_rating,
+                cover = game.cover,
+                status = "Not Started"
+            };
+
+            Console.WriteLine($"Selected game: {JsonConvert.SerializeObject(gameDao)}");
+            MudDialog.Close(DialogResult.Ok(gameDao));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in SelectGame: {ex}");
+            Snackbar.Add("Error processing game data", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog?.Close(DialogResult.Cancel());
+
+    private string GetPlatforms(Game game)
+    {
+        if (game.platforms == null || !game.platforms.Any()) return "Unknown";
+        string gameplatforms = game.platforms?.Any() == true
+            ? string.Join(", ", game.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)))
+            : "";
+        return gameplatforms;
+    }
+
+    private string GetReleaseDate(Game game)
+    {
+        if (game.release_dates == null || !game.release_dates.Any()) return "TBA";
+        return game.release_dates.First().human;
+    }
+    private string GetGenres(Game game)
+    {
+        if (game.genres == null || !game.genres.Any()) return "Unknown";
+        string genres = game.genres?.Any() == true
+            ? string.Join(", ", game.genres.Select(g => g.Name).Where(n => !string.IsNullOrEmpty(n)))
+            : "";
+        return genres;
+	}
+}

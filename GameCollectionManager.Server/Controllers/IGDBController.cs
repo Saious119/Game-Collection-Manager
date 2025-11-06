@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GameCollectionManagerAPI.Controllers
 {
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     [ApiController]
     public class IGDBController : ControllerBase
     {
@@ -29,6 +29,19 @@ namespace GameCollectionManagerAPI.Controllers
         {
             var result = await _iGDB_Service.GetCoverArt(coverID);
             return result;
+        }
+        [HttpGet("Search")]
+        public async Task<ActionResult<List<Game>>> Search([FromQuery] string name)
+        {
+            try
+            {
+                var games = await _iGDB_Service.SearchIGDBInfo(name);
+                return Ok(games);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error searching games: {ex.Message}");
+            }
         }
     }
 }

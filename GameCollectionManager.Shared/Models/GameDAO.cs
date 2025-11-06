@@ -17,5 +17,6 @@
         public float? howlongtobeat { get; set; }
         public float? metacriticscore { get; set; }
         public string? status { get; set; }
+        public int? queuepos { get; set; }
     }
 }

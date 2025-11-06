@@ -35,6 +35,32 @@ public class IGDB_Service : IIGDB_Service
             return results.First();
         }
     }
+    public async Task<List<Game>> SearchIGDBInfo(string gameName)
+    {
+        var authToken = await GetIGDBToken();
+        var client = new HttpClient();
+        var content = new StringContent(String.Format("search \"{0}\"; fields id,aggregated_rating,cover,release_dates.human, genres.name,involved_companies.company.name,multiplayer_modes,name,platforms.name,summary; limit 10;", gameName), Encoding.UTF8, "text/plain");
+        var request = new HttpRequestMessage
+        {
+            Method = HttpMethod.Post,
+            RequestUri = new Uri(baseIGDBUrl),
+            Content = content,
+            Headers =
+            {
+                { "Client-ID", StaticVariables.IGDB_CLIENT_ID },
+                { "Authorization", authToken },
+            }
+        };
+        using (var response = await client.SendAsync(request))
+        {
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content.ReadAsStringAsync();
+            List<Game> results = JsonConvert.DeserializeObject<List<Game>>(body);
+            Console.WriteLine(body);
+            return results;
+        }
+    }
+
     public async Task<string> GetCoverArt(int CoverID)
     {
         var authToken = await GetIGDBToken();
