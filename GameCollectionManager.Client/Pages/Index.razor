@@ -64,7 +64,8 @@
                                       Size="Size.Small"
                                       OnClick="@(() => AddToQueue((GameDAO)gameContext.Item))"
                                       Disabled="@(((GameDAO)gameContext.Item).queuepos != null || _processing)"
-                                      Loading="@(_processingId == ((GameDAO)gameContext.Item).id)">
+                                      Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
+                                      Class="fixed-width-button"> 
                                 @if (_processingId == ((GameDAO)gameContext.Item).id)
                                 {
                                     <span>Adding...</span>
@@ -152,7 +153,8 @@
                                   Size="Size.Small"
                                   OnClick="@(() => RemoveFromQueue((GameDAO)gameContext.Item))"
                                   Disabled="@(((GameDAO)gameContext.Item).queuepos == null || _processing)"
-                                  Loading="@(_processingId == ((GameDAO)gameContext.Item).id)">
+                                  Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
+                                  Class="fixed-width-queue-button">
                             @if (_processingId == ((GameDAO)gameContext.Item).id)
                             {
                                 <span>Removing...</span>
@@ -173,6 +175,13 @@
     .mud-grid-item.mud-dragging {
         background-color: var(--mud-palette-background-grey);
         opacity: 0.8;
+    }
+
+    .fixed-width-button {
+        width: 130px;  /* Adjust this value based on your needs */
+    }
+    .fixed-width-queue-button {
+        width: 170px;
     }
 </style>
 
