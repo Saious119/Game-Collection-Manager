@@ -1,1 +1,1 @@
-# An API for game collection manager angular front end
+# A website for game collection management written entirely in C# with Blazor
