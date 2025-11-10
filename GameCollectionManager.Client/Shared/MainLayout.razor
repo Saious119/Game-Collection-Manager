@@ -1,23 +1,44 @@
 ﻿@inherits LayoutComponentBase
 
-<PageTitle>MangaTracker_Temp</PageTitle>
+<PageTitle>What To Play</PageTitle>
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<MudAppBar Color="Color.Primary" Fixed="false" Dense="@dense" Elevation="@elevation">
+    <MudMenu Dense
+             Variant="Variant.Text"
+             Size="Size.Medium"
+             Color="Color.Inherit"
+             Icon="@Icons.Material.TwoTone.MoreVert">
 
-    <main>
-        <div class="top-row px-4 auth">
-            <LoginDisplay />
-            <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
-        </div>
+        <MudMenu StartIcon="@Icons.Material.TwoTone.Settings"
+                 IconColor="Color.Primary"
+                 Label="Settings">
+            <MudMenuItem Icon="@Icons.Material.TwoTone.DarkMode"
+                         IconColor="Color.Secondary"
+                         Label="Dark Theme" />
+        </MudMenu>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+        <MudDivider />
+
+        <MudMenuItem Href="/"
+                     ForceLoad
+                     Icon="@Icons.Material.TwoTone.Login"
+                     IconColor="Color.Primary"
+                     Label="Sign In" />
+
+        <MudMenuItem Href="/"
+                     ForceLoad
+                     Icon="@Icons.Material.TwoTone.Logout"
+                     IconColor="Color.Primary"
+                     Label="Sign Out" />
+    </MudMenu>
+
+    <MudSpacer />
+
+    <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" href="https://github.com/Saious119/Game-Collection-Manager-API" />
+</MudAppBar>
+<article class="content px-4">
+    @Body
+</article>
 @* Required *@
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -27,3 +48,9 @@
 
 @* Needed for snackbars *@
 <MudSnackbarProvider />
+
+@code
+{
+    int elevation = 10;
+    bool dense = false;
+}
