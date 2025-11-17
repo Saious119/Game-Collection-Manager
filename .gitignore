@@ -366,3 +366,5 @@ GameCollectionManagerAPI/Properties/launchSettings.json
 .DS_Store
 /.idea/.idea.GameCollectionManagerAPI/.idea
 /ExampleData
+/GameCollectionManager.Server/appsettings.json
+/GameCollectionManager.Server/Properties/launchSettings.json
