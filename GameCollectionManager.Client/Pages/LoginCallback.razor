@@ -1,0 +1,31 @@
+@page "/authentication/login-callback"
+@using Blazored.LocalStorage
+@using GameCollectionManager.Client.Auth
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+
+<h3>Processing login...</h3>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(Navigation.Uri);
+        
+        // Use QueryHelpers instead of System.Web.HttpUtility (not available in WASM)
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+        var token = queryParams.TryGetValue("token", out var tokenValue) ? tokenValue.ToString() : null;
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            await ((CustomAuthStateProviderV2)AuthStateProvider).MarkUserAsAuthenticated(token);
+            Navigation.NavigateTo("/", true);
+        }
+        else
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

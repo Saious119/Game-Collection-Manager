@@ -1,0 +1,25 @@
+@page "/login"
+@inject NavigationManager Navigation
+@inject HttpClient Http
+
+<h3>Login</h3>
+
+<button class="btn btn-primary" @onclick="LoginWithDiscord">
+    <i class="fab fa-discord"></i> Login with Discord
+</button>
+
+@code {
+    private async Task LoginWithDiscord()
+    {
+        var response = await Http.GetFromJsonAsync<AuthUrlResponse>("api/auth/discord/login");
+        if (response != null)
+        {
+            Navigation.NavigateTo(response.AuthUrl, true);
+        }
+    }
+
+    private class AuthUrlResponse
+    {
+        public string AuthUrl { get; set; } = "";
+    }
+}

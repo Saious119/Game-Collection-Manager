@@ -6,9 +6,15 @@
 @using Newtonsoft.Json
 @using MudBlazor
 @using MudBlazor.Extensions
+@using System.Security.Claims
+@using System.IdentityModel.Tokens.Jwt
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Game Collection</PageTitle>
 
@@ -202,11 +208,27 @@
     private int _processingId = -1;
     private int _deletingId = -1;
 
-    private string user = "test";
-
-
+    private string? user;
 
     protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        
+        // Get the user ID from the Sub claim (Discord user ID)
+        user = authState.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        
+        // If you want to use username instead, use this:
+        // user = authState.User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value;
+        
+        if (string.IsNullOrEmpty(user))
+        {
+            user = "unknown";
+        }
+
+        await LoadGames();
+    }
+
+    private async Task LoadGames()
     {
         try
         {

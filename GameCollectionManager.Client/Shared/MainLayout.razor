@@ -1,44 +1,41 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using GameCollectionManager.Client.Auth
+@using System.Security.Claims
+@using System.IdentityModel.Tokens.Jwt
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient HttpClient
+@inject IJSRuntime JSRuntime
 
-<PageTitle>What To Play</PageTitle>
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
 
-<MudAppBar Color="Color.Primary" Fixed="false" Dense="@dense" Elevation="@elevation">
-    <MudMenu Dense
-             Variant="Variant.Text"
-             Size="Size.Medium"
-             Color="Color.Inherit"
-             Icon="@Icons.Material.TwoTone.MoreVert">
+    <main>
+        <div class="top-row px-4 auth-controls">
+            <AuthorizeView>
+                <Authorized>
+                    <span>Welcome, @GetUsername(context.User)!</span>
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleLogout">
+                        Logout
+                    </MudButton>
+                </Authorized>
+                <NotAuthorized>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleLogin">
+                        Login with Discord
+                    </MudButton>
+                </NotAuthorized>
+            </AuthorizeView>
+            <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" href="https://github.com/Saious119/Game-Collection-Manager-API" />
+        </div>
 
-        <MudMenu StartIcon="@Icons.Material.TwoTone.Settings"
-                 IconColor="Color.Primary"
-                 Label="Settings">
-            <MudMenuItem Icon="@Icons.Material.TwoTone.DarkMode"
-                         IconColor="Color.Secondary"
-                         Label="Dark Theme" />
-        </MudMenu>
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
 
-        <MudDivider />
-
-        <MudMenuItem Href="/"
-                     ForceLoad
-                     Icon="@Icons.Material.TwoTone.Login"
-                     IconColor="Color.Primary"
-                     Label="Sign In" />
-
-        <MudMenuItem Href="/"
-                     ForceLoad
-                     Icon="@Icons.Material.TwoTone.Logout"
-                     IconColor="Color.Primary"
-                     Label="Sign Out" />
-    </MudMenu>
-
-    <MudSpacer />
-
-    <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" href="https://github.com/Saious119/Game-Collection-Manager-API" />
-</MudAppBar>
-<article class="content px-4">
-    @Body
-</article>
 @* Required *@
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -49,8 +46,44 @@
 @* Needed for snackbars *@
 <MudSnackbarProvider />
 
-@code
-{
-    int elevation = 10;
-    bool dense = false;
+@code {
+    private async Task HandleLogin()
+    {
+        // Get the Discord OAuth URL from the server
+        var response = await HttpClient.GetAsync("api/auth/discord/login");
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<DiscordLoginResponse>();
+            if (result?.AuthUrl != null)
+            {
+                // Redirect to Discord OAuth page
+                await JSRuntime.InvokeVoidAsync("open", result.AuthUrl, "_self");
+            }
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        if (AuthenticationStateProvider is CustomAuthStateProviderV2 provider)
+        {
+            await provider.MarkUserAsLoggedOut();
+        }
+    }
+
+    private string GetUsername(ClaimsPrincipal user)
+    {
+        // Try to get username from UniqueName claim (JWT standard)
+        var username = user.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value;
+        
+        // Fallback to Name claim
+        if (string.IsNullOrEmpty(username))
+            username = user.Identity?.Name;
+            
+        return username ?? "User";
+    }
+
+    private class DiscordLoginResponse
+    {
+        public string AuthUrl { get; set; } = "";
+    }
 }
