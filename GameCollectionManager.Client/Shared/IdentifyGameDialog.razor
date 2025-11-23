@@ -83,7 +83,7 @@
             else if (_searchCompleted)
             {
                 <MudAlert Severity="Severity.Info" Class="mb-4">No games found in IGDB for "@_lastSearchTerm"</MudAlert>
-                <MudText Typo="Typo.body2" Class="mb-2">Try searching with a different title:</MudText>
+                <MudText Typo="Typo.body2" Class="mb-2">Try searching with a different title (try removing any symbols or non-letter characters):</MudText>
                 <MudTextField @bind-Value="_customSearchTerm" 
                              Label="Game title" 
                              Variant="Variant.Outlined"
