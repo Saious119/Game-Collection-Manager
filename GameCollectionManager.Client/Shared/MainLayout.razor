@@ -9,30 +9,36 @@
 @inject NavigationManager NavigationManager
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
-
     <main>
         <div class="top-row px-4 auth-controls">
-            <MudIconButton Icon="@Icons.Material.Filled.Home" Color="Color.Inherit" OnClick="HandleHome" />
-            <AuthorizeView>
-                <Authorized>
-                    <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleUpload">
-                        Upload Collection
-                    </MudButton>
-                    <span>Welcome, @GetUsername(context.User)!</span>
-                    <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleLogout">
-                        Logout
-                    </MudButton>
-                </Authorized>
-                <NotAuthorized>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleLogin">
-                        Login with Discord
-                    </MudButton>
-                </NotAuthorized>
-            </AuthorizeView>
-            <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" href="https://github.com/Saious119/Game-Collection-Manager-API" />
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <MudIconButton Icon="@Icons.Material.Filled.Home" Color="Color.Inherit" OnClick="HandleHome" />
+                    <AuthorizeView>
+                        <Authorized>
+                            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleUpload">
+                                Upload Collection
+                            </MudButton>
+                        </Authorized>
+                    </AuthorizeView>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <AuthorizeView>
+                        <Authorized>
+                            <span>Welcome, @GetUsername(context.User)!</span>
+                            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleLogout">
+                                Logout
+                            </MudButton>
+                        </Authorized>
+                        <NotAuthorized>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="HandleLogin">
+                                Login with Discord
+                            </MudButton>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                    <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" href="https://github.com/Saious119/Game-Collection-Manager-API" />
+                </div>
+            </div>
         </div>
 
         <article class="content px-4">
