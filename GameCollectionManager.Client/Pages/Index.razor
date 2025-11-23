@@ -86,6 +86,14 @@
                                 }
                             </MudButton>
 
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                      Variant="Variant.Filled" 
+                                      Color="Color.Info" 
+                                      Size="Size.Small"
+                                      aria-label="edit"
+                                      OnClick="@(async () => await OpenEditGameDialog((GameDAO)gameContext.Item))">
+                            </MudIconButton>
+
                             <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" 
                                       Variant="Variant.Filled" 
                                       Color="Color.Error" 
@@ -154,22 +162,32 @@
                 </PropertyColumn>
                 <TemplateColumn Title="Actions">
                     <CellTemplate Context="gameContext">
-                        <MudButton Variant="Variant.Filled" 
-                                  Color="Color.Primary" 
-                                  Size="Size.Small"
-                                  OnClick="@(() => RemoveFromQueue((GameDAO)gameContext.Item))"
-                                  Disabled="@(((GameDAO)gameContext.Item).queuepos == null || _processing)"
-                                  Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
-                                  Class="fixed-width-queue-button">
-                            @if (_processingId == ((GameDAO)gameContext.Item).id)
-                            {
-                                <span>Removing...</span>
-                            }
-                            else
-                            {
-                                <span>Remove From Queue</span>
-                            }
-                        </MudButton>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" 
+                                      Color="Color.Primary" 
+                                      Size="Size.Small"
+                                      OnClick="@(() => RemoveFromQueue((GameDAO)gameContext.Item))"
+                                      Disabled="@(((GameDAO)gameContext.Item).queuepos == null || _processing)"
+                                      Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
+                                      Class="fixed-width-queue-button">
+                                @if (_processingId == ((GameDAO)gameContext.Item).id)
+                                {
+                                    <span>Removing...</span>
+                                }
+                                else
+                                {
+                                    <span>Remove From Queue</span>
+                                }
+                            </MudButton>
+
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                      Variant="Variant.Filled" 
+                                      Color="Color.Info" 
+                                      Size="Size.Small"
+                                      aria-label="edit"
+                                      OnClick="@(async () => await OpenEditGameDialog((GameDAO)gameContext.Item))">
+                            </MudIconButton>
+                        </div>
                     </CellTemplate>
                 </TemplateColumn>
             </Columns>
@@ -213,9 +231,9 @@
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        
-        // Get the user ID from the Sub claim (Discord user ID)
-        user = authState.User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        var AuthUser = authState.User;
+        user = AuthUser.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value
+                          ?? AuthUser.Identity?.Name;
         
         // If you want to use username instead, use this:
         // user = authState.User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value;
@@ -406,6 +424,52 @@
         {
             Console.WriteLine($"Error in OpenAddGameDialog: {ex}");
             Snackbar.Add("Error adding game", Severity.Error);
+        }
+    }
+
+    private async Task OpenEditGameDialog(GameDAO game)
+    {
+        try
+        {
+            var parameters = new DialogParameters
+            {
+                { "Game", game }
+            };
+            
+            var dialog = await DialogService.ShowAsync<EditGameDialog>("Edit Game", parameters);
+            var result = await dialog.Result;
+
+            if (!result.Canceled)
+            {
+                Console.WriteLine($"Dialog result: {JsonConvert.SerializeObject(result.Data)}");
+                if (result.Data is GameDAO editedGame)
+                {
+                    editedGame.owner = user;
+                    var response = await Http.PostAsJsonAsync($"api/GameCollection/AddNewGame?user={user}", editedGame);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        Snackbar.Add($"Updated {editedGame.name} successfully", Severity.Success);
+                        await OnInitializedAsync();
+                    }
+                    else
+                    {
+                        var error = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"Error response: {error}");
+                        Snackbar.Add("Failed to update game", Severity.Error);
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Unexpected data type: {result.Data?.GetType().FullName}");
+                    Snackbar.Add("Error: Invalid game data received", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OpenEditGameDialog: {ex}");
+            Snackbar.Add("Error editing game", Severity.Error);
         }
     }
 

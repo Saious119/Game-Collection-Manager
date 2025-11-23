@@ -6,6 +6,7 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject HttpClient HttpClient
 @inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
 
 <div class="page">
     <div class="sidebar">
@@ -14,8 +15,12 @@
 
     <main>
         <div class="top-row px-4 auth-controls">
+            <MudIconButton Icon="@Icons.Material.Filled.Home" Color="Color.Inherit" OnClick="HandleHome" />
             <AuthorizeView>
                 <Authorized>
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleUpload">
+                        Upload Collection
+                    </MudButton>
                     <span>Welcome, @GetUsername(context.User)!</span>
                     <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleLogout">
                         Logout
@@ -69,6 +74,10 @@
             await provider.MarkUserAsLoggedOut();
         }
     }
+
+    private void HandleHome() => NavigationManager.NavigateTo("/");
+
+    private async Task HandleUpload() => NavigationManager.NavigateTo("/upload");
 
     private string GetUsername(ClaimsPrincipal user)
     {

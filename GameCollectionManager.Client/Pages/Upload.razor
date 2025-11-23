@@ -1,0 +1,614 @@
+﻿@page "/upload"
+
+@using FluentValidation
+@using CsvHelper
+@using CsvHelper.Configuration
+@using System.Globalization
+@using System.IO
+@using GameCollectionManager.Client.Shared
+@using GameCollectionManager.Shared.Models
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDialogService DialogService
+
+<style>
+    .file-upload-input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 10;
+        opacity: 0;
+    }
+    
+    .row-success-igdb {
+        background-color: rgba(76, 175, 80, 0.2) !important;
+    }
+    
+    .row-success-no-igdb {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+    }
+    
+    .row-failed {
+        background-color: rgba(244, 67, 54, 0.2) !important;
+    }
+    
+    .expand-icon {
+        cursor: pointer;
+        transition: transform 0.3s;
+    }
+    
+    .expand-icon.expanded {
+        transform: rotate(90deg);
+    }
+    
+    .detail-row {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+</style>
+
+<MudStack Style="width: 100%">
+    <MudForm Model="@_model"
+             @bind-IsValid="_isValid"
+             @bind-IsTouched="_isTouched"
+             Validation="@_validationRules.ValidateValue">
+        <MudItem xs="12">
+            <MudFileUpload T="IReadOnlyList<IBrowserFile>"
+                           @ref="@_fileUpload"
+                           @bind-Files="_model.Files"
+                           For="@(() => _model.Files)"
+                           AppendMultipleFiles
+                           Hidden="@false"
+                           InputClass="file-upload-input"
+                           ErrorText="@string.Empty"
+                           tabindex="-1"
+                           @ondrop="@ClearDragClass"
+                           @ondragenter="@SetDragClass"
+                           @ondragleave="@ClearDragClass"
+                           @ondragend="@ClearDragClass">
+                <ActivatorContent>
+                    <MudPaper Height="300px"
+                              Outlined="true"
+                              Class="@_dragClass">
+                        <MudText Typo="Typo.h6">
+                            Drag and drop CSV files here or click
+                        </MudText>
+                        @foreach (var file in _model.Files?.Select(file => file.Name) ?? Enumerable.Empty<string>())
+                        {
+                            <MudChip T="string" Color="Color.Dark" Text="@file" />
+                        }
+                    </MudPaper>
+                </ActivatorContent>
+            </MudFileUpload>
+            <MudToolBar Gutters="@false"
+                        Class="relative d-flex justify-end gap-4">
+                <MudButton Color="Color.Primary"
+                           OnClick="@OpenFilePickerAsync"
+                           Variant="Variant.Filled">
+                    Open file picker
+                </MudButton>
+                <MudButton Color="Color.Primary"
+                           Disabled="@(!_isValid || !_isTouched || _model.Files is null || !_model.Files.Any())"
+                           OnClick="@UploadFiles"
+                           Variant="Variant.Filled">
+                    Upload & Process
+                </MudButton>
+                <MudButton Color="Color.Error"
+                           Disabled="@(_model.Files is null || !_model.Files.Any())"
+                           OnClick="@ClearAsync"
+                           Variant="Variant.Filled">
+                    Clear
+                </MudButton>
+            </MudToolBar>
+        </MudItem>
+        <MudItem>
+            @if (_fileUpload?.ValidationErrors.Any() ?? false)
+            {
+                <MudText Color="Color.Error"
+                         Typo="@Typo.caption">
+                    @_fileUpload?.ValidationErrors[0]
+                </MudText>
+            }
+        </MudItem>
+        @if (_processing)
+        {
+            <MudItem xs="12">
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-2">
+                    Processing @_currentProgress / @_totalGames games...
+                </MudText>
+            </MudItem>
+        }
+        <MudItem xs="12">
+            IsValid: @_isValid - IsTouched: @_isTouched
+        </MudItem>
+        @if (_processedGames.Any())
+        {
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6">Processed Games (@_processedGames.Count)</MudText>
+                <MudSimpleTable Dense="true" Hover="true" Style="max-height: 400px; overflow-y: auto;">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;"></th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Platforms</th>
+                            <th>Metacritic Score</th>
+                            <th>IGDB Match</th>
+                            <th>Upload Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var result in _processedGames)
+                        {
+                            <tr class="@GetRowClass(result)">
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">
+                                    <MudIcon Icon="@Icons.Material.Filled.ChevronRight" 
+                                             Class="@($"expand-icon {(result.IsExpanded ? "expanded" : "")}")" 
+                                             Size="Size.Small" />
+                                </td>
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">@result.Game.name</td>
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">@result.Game.status</td>
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">@result.Game.platforms</td>
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">@result.Game.metacriticscore</td>
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">
+                                    @if (result.HadIgdbMatch)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="Found" />
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Text="No Match" />
+                                    }
+                                </td>
+                                <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">
+                                    @if (result.UploadSuccess)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="Success" />
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Color="Color.Error" Size="Size.Small" Text="Failed" />
+                                    }
+                                </td>
+                                <td>
+                                    <MudButton Color="Color.Primary" 
+                                              Size="Size.Small" 
+                                              Variant="Variant.Filled"
+                                              OnClick="@(() => OpenIdentifyDialog(result))"
+                                              Disabled="@(!result.UploadSuccess)">
+                                        Identify
+                                    </MudButton>
+                                </td>
+                            </tr>
+                            @if (result.IsExpanded)
+                            {
+                                <tr class="detail-row">
+                                    <td colspan="8" style="padding: 16px;">
+                                        <MudPaper Elevation="0" Class="pa-4">
+                                            @if (result.UploadSuccess)
+                                            {
+                                                <MudText Color="Color.Success">
+                                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" /> 
+                                                    No errors, upload successful
+                                                </MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText Color="Color.Error" Typo="Typo.body2">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" /> 
+                                                    <strong>Error:</strong> @result.ErrorMessage
+                                                </MudText>
+                                            }
+                                        </MudPaper>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            </MudItem>
+        }
+        @if (_processingSummary != null)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="MudBlazor.Severity.Success">
+                    <MudText Typo="Typo.h6">Import Complete!</MudText>
+                    <MudText>Successfully added: @_processingSummary.SuccessCount games</MudText>
+                    <MudText>IGDB matches found: @_processingSummary.IgdbMatchCount games</MudText>
+                    <MudText>Added without IGDB data: @_processingSummary.NoMatchCount games</MudText>
+                    @if (_processingSummary.FailedCount > 0)
+                    {
+                        <MudText Color="Color.Error">Failed: @_processingSummary.FailedCount games</MudText>
+                    }
+                </MudAlert>
+            </MudItem>
+        }
+    </MudForm>
+</MudStack>
+
+@code {
+    #nullable enable
+    public class Model
+    {
+        public IReadOnlyList<IBrowserFile>? Files { get; set; } = new List<IBrowserFile>();
+    }
+
+    public class ProcessingSummary
+    {
+        public int SuccessCount { get; set; }
+        public int FailedCount { get; set; }
+        public int IgdbMatchCount { get; set; }
+        public int NoMatchCount { get; set; }
+    }
+
+    public class ProcessedGameResult
+    {
+        public GameDAO Game { get; set; } = new();
+        public bool HadIgdbMatch { get; set; }
+        public bool UploadSuccess { get; set; }
+        public string ErrorMessage { get; set; } = string.Empty;
+        public bool IsExpanded { get; set; }
+    }
+
+    private Model _model = new();
+    private ModelFluentValidator _validationRules = new();
+    private MudFileUpload<IReadOnlyList<IBrowserFile>>? _fileUpload;
+    private bool _isValid;
+    private bool _isTouched;
+    private List<ProcessedGameResult> _processedGames = new();
+    private bool _processing;
+    private int _currentProgress;
+    private int _totalGames;
+    private ProcessingSummary? _processingSummary;
+    private string? _currentUsername;
+    private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
+    private string _dragClass = DefaultDragClass;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _currentUsername = user.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value
+                          ?? user.Identity?.Name;
+    }
+
+    private void ToggleRow(ProcessedGameResult result)
+    {
+        result.IsExpanded = !result.IsExpanded;
+    }
+
+    private async Task OpenIdentifyDialog(ProcessedGameResult result)
+    {
+        var parameters = new DialogParameters
+        {
+            { "GameName", result.Game.name },
+            { "CurrentGame", result.Game }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        var dialog = await DialogService.ShowAsync<IdentifyGameDialog>("Identify Game", parameters, options);
+        var dialogResult = await dialog.Result;
+
+        if (!dialogResult.Canceled && dialogResult.Data is Game selectedGame)
+        {
+            try
+            {
+                // Create a new GameDAO with the IGDB data, preserving the Steam metadata
+                var updatedGame = new GameDAO
+                {
+                    id = selectedGame.id,
+                    name = selectedGame.name ?? result.Game.name,
+                    platforms = selectedGame.platforms?.Any() == true
+                        ? string.Join(", ", selectedGame.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)))
+                        : result.Game.platforms,
+                    releasedates = selectedGame.release_dates?.FirstOrDefault()?.human ?? result.Game.releasedates ?? "",
+                    genres = selectedGame.genres?.Any() == true
+                        ? string.Join(", ", selectedGame.genres.Select(g => g.Name).Where(n => !string.IsNullOrEmpty(n)))
+                        : result.Game.genres,
+                    summary = selectedGame.summary ?? result.Game.summary,
+                    aggregatedrating = selectedGame.aggregated_rating,
+                    cover = selectedGame.cover,
+                    metacriticscore = result.Game.metacriticscore ?? selectedGame.metacriticScore,
+                    status = result.Game.status,
+                    owner = _currentUsername
+                };
+
+                // Update the game in the database
+                var (success, errorMessage) = await AddGameToDatabase(updatedGame);
+
+                if (success)
+                {
+                    // Update the result in the list
+                    result.Game = updatedGame;
+                    result.HadIgdbMatch = true;
+                    Snackbar.Add($"Successfully updated {updatedGame.name} with IGDB data", MudBlazor.Severity.Success);
+                    StateHasChanged();
+                }
+                else
+                {
+                    Snackbar.Add($"Failed to update game: {errorMessage}", MudBlazor.Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error updating game: {ex.Message}", MudBlazor.Severity.Error);
+            }
+        }
+    }
+
+    private async Task UploadFiles()
+    {
+        if (_model.Files is null || !_model.Files.Any())
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_currentUsername))
+        {
+            Snackbar.Add("You must be logged in to upload games", MudBlazor.Severity.Error);
+            return;
+        }
+
+        _processedGames.Clear();
+        _processingSummary = null;
+        _processing = true;
+        _currentProgress = 0;
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+
+        try
+        {
+            // Step 1: Parse CSV files
+            List<SteamLibraryModel> steamGames = new();
+            foreach (var file in _model.Files)
+            {
+                if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    Snackbar.Add($"Skipped {file.Name}: Not a CSV file", MudBlazor.Severity.Warning);
+                    continue;
+                }
+
+                const long maxFileSize = 10 * 1024 * 1024;
+                using var stream = file.OpenReadStream(maxFileSize);
+                
+                // Read the stream asynchronously into memory first
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+                
+                using var reader = new StreamReader(memoryStream);
+                using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    HasHeaderRecord = true,
+                    MissingFieldFound = null,
+                    HeaderValidated = null,
+                    TrimOptions = TrimOptions.Trim
+                });
+
+                steamGames.AddRange(csv.GetRecords<SteamLibraryModel>().ToList());
+            }
+
+            _totalGames = steamGames.Count;
+            StateHasChanged();
+
+            // Step 2: Process each game - search IGDB and add to database
+            var summary = new ProcessingSummary();
+            
+            foreach (var steamGame in steamGames)
+            {
+                _currentProgress++;
+                StateHasChanged();
+
+                var result = new ProcessedGameResult();
+
+                try
+                {
+                    GameDAO gameDao;
+                    
+                    // Search IGDB for the game
+                    var igdbGame = await SearchIGDB(steamGame.game ?? "");
+                    
+                    if (igdbGame != null)
+                    {
+                        // IGDB match found - use IGDB data
+                        gameDao = ConvertIGDBGameToDAO(igdbGame, steamGame);
+                        result.HadIgdbMatch = true;
+                        summary.IgdbMatchCount++;
+                    }
+                    else
+                    {
+                        // No IGDB match - use Steam data only
+                        gameDao = ConvertSteamGameToDAO(steamGame);
+                        result.HadIgdbMatch = false;
+                        summary.NoMatchCount++;
+                    }
+
+                    result.Game = gameDao;
+
+                    // Add game to database
+                    var (addSuccess, errorMessage) = await AddGameToDatabase(gameDao);
+                    result.UploadSuccess = addSuccess;
+                    result.ErrorMessage = errorMessage;
+                    
+                    if (addSuccess)
+                    {
+                        summary.SuccessCount++;
+                    }
+                    else
+                    {
+                        summary.FailedCount++;
+                    }
+
+                    _processedGames.Add(result);
+
+                    // Small delay to avoid rate limiting
+                    await Task.Delay(100);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing game '{steamGame.game}': {ex.Message}");
+                    result.Game = new GameDAO { name = steamGame.game ?? "Unknown" };
+                    result.UploadSuccess = false;
+                    result.HadIgdbMatch = false;
+                    result.ErrorMessage = $"Exception occurred: {ex.Message}";
+                    _processedGames.Add(result);
+                    summary.FailedCount++;
+                }
+            }
+
+            _processingSummary = summary;
+            Snackbar.Add($"Processing complete! Added {summary.SuccessCount} games", MudBlazor.Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error parsing CSV: {ex.Message}", MudBlazor.Severity.Error);
+        }
+        finally
+        {
+            _processing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetRowClass(ProcessedGameResult result)
+    {
+        if (!result.UploadSuccess)
+            return "row-failed";
+        
+        if (result.HadIgdbMatch)
+            return "row-success-igdb";
+        
+        return "row-success-no-igdb";
+    }
+
+    private async Task<Game?> SearchIGDB(string gameName)
+    {
+        if (string.IsNullOrWhiteSpace(gameName))
+            return null;
+
+        try
+        {
+            var response = await Http.GetFromJsonAsync<Game>($"api/IGDB/GetGameInfo/{Uri.EscapeDataString(gameName)}");
+            return response;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"IGDB search failed for '{gameName}': {ex.Message}");
+            return null;
+        }
+    }
+
+    private GameDAO ConvertIGDBGameToDAO(Game igdbGame, SteamLibraryModel steamGame)
+    {
+        string platforms = igdbGame.platforms?.Any() == true
+            ? string.Join(", ", igdbGame.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)))
+            : "PC";
+
+        string genres = igdbGame.genres?.Any() == true
+            ? string.Join(", ", igdbGame.genres.Select(g => g.Name).Where(n => !string.IsNullOrEmpty(n)))
+            : "";
+
+        return new GameDAO
+        {
+            id = igdbGame.id,
+            name = igdbGame.name ?? steamGame.game,
+            platforms = platforms,
+            releasedates = igdbGame.release_dates?.FirstOrDefault()?.human ?? steamGame.release_date?.ToString("yyyy-MM-dd") ?? "",
+            genres = genres,
+            summary = igdbGame.summary ?? "",
+            aggregatedrating = igdbGame.aggregated_rating,
+            cover = igdbGame.cover,
+            metacriticscore = steamGame.metascore ?? igdbGame.metacriticScore,
+            status = "Not Started",
+            owner = _currentUsername
+        };
+    }
+
+    private GameDAO ConvertSteamGameToDAO(SteamLibraryModel steamGame)
+    {
+        // Generate a unique timestamp-based ID
+        // Using Unix timestamp in milliseconds to ensure uniqueness
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        
+        // Add a small random component to avoid collisions if multiple games are processed at the exact same millisecond
+        var random = new Random();
+        var uniqueId = (int)(timestamp % int.MaxValue) + random.Next(0, 1000);
+        
+        return new GameDAO
+        {
+            id = uniqueId,
+            name = steamGame.game,
+            platforms = "PC",
+            releasedates = steamGame.release_date?.ToString("yyyy-MM-dd") ?? "",
+            metacriticscore = steamGame.metascore,
+            status = "Not Started",
+            owner = _currentUsername
+        };
+    }
+
+    private async Task<(bool success, string errorMessage)> AddGameToDatabase(GameDAO gameDao)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"api/GameCollection/AddNewGame?user={Uri.EscapeDataString(_currentUsername ?? "")}", gameDao);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                return (true, string.Empty);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                return (false, $"HTTP {(int)response.StatusCode}: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Failed to add game '{gameDao.name}': {ex.Message}");
+        }
+    }
+
+    private void SetDragClass()
+        => _dragClass = $"{DefaultDragClass} mud-border-primary";
+
+    private void ClearDragClass()
+        => _dragClass = DefaultDragClass;
+
+    private Task OpenFilePickerAsync()
+        => _fileUpload?.OpenFilePickerAsync() ?? Task.CompletedTask;
+
+    private Task ClearAsync()
+    {
+        _processedGames.Clear();
+        _processingSummary = null;
+        _currentProgress = 0;
+        _totalGames = 0;
+        return _fileUpload?.ClearAsync() ?? Task.CompletedTask;
+    }
+
+    public class ModelFluentValidator : AbstractValidator<Model>
+    {
+        public ModelFluentValidator()
+        {
+            RuleFor(x => x.Files)
+                .NotEmpty()
+                .WithMessage("There must be at least 1 file.");
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<Model>.CreateWithOptions((Model)model, x => x.IncludeProperties(propertyName)));
+            return result.IsValid ? Array.Empty<string>() : result.Errors.Select(e => e.ErrorMessage);
+        };
+    }
+}

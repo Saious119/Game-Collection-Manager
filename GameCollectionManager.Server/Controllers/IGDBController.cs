@@ -18,17 +18,33 @@ namespace GameCollectionManagerAPI.Controllers
         }
 
         [HttpGet("GetGameInfo/{game}")]
-        public async Task<Game> GetGameInfoAsync(string game)
+        public async Task<ActionResult<Game>> GetGameInfoAsync(string game)
         {
-            var result = await _iGDB_Service.GetIGDBInfo(game);
-            result.multiplayer_mode_flags = await _iGDB_Service.GetMultiplayerModes(result.id);
-            return result;
+            try
+            {
+                var result = await _iGDB_Service.GetIGDBInfo(game);
+                result.multiplayer_mode_flags = await _iGDB_Service.GetMultiplayerModes(result.id);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error fetching game info for {game}: {ex.Message}");
+                return StatusCode(500, $"Error fetching game info: {ex.Message}");
+            }
         }
         [HttpGet("GetGameCover/{coverID}")]
-        public async Task<string> GetGameInfoAsync(int coverID)
+        public async Task<ActionResult<string>> GetGameInfoAsync(int coverID)
         {
-            var result = await _iGDB_Service.GetCoverArt(coverID);
-            return result;
+            try
+            {
+                var result = await _iGDB_Service.GetCoverArt(coverID);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error fetching cover art for {coverID}: {ex.Message}");
+                return StatusCode(500, $"Error fetching game cover: {ex.Message}");
+            }
         }
         [HttpGet("Search")]
         public async Task<ActionResult<List<Game>>> Search([FromQuery] string name)

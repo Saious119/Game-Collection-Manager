@@ -1,0 +1,189 @@
+@using GameCollectionManager.Shared.Models
+@using MudBlazor
+@using Newtonsoft.Json
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudDialog DisableSidePadding="true">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="px-4">Edit Game</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudContainer Style="max-height: 600px; overflow-y: auto" Class="px-4">
+            <MudButton Color="Color.Secondary" 
+                      Variant="Variant.Outlined" 
+                      OnClick="OpenIdentifyDialog"
+                      StartIcon="@Icons.Material.Filled.Search"
+                      FullWidth="true"
+                      Class="mb-4">
+                Re-identify Game from IGDB
+            </MudButton>
+
+            <MudTextField @bind-Value="_editedGame.name" 
+                         Label="Game Name" 
+                         Variant="Variant.Outlined"
+                         Class="mb-4" />
+            
+            <MudTextField @bind-Value="_editedGame.platforms" 
+                         Label="Platform(s)" 
+                         Variant="Variant.Outlined"
+                         Class="mb-4" />
+            
+            <MudTextField @bind-Value="_editedGame.releasedates" 
+                         Label="Release Date" 
+                         Variant="Variant.Outlined"
+                         Class="mb-4" />
+            
+            <MudTextField @bind-Value="_editedGame.genres" 
+                         Label="Genres" 
+                         Variant="Variant.Outlined"
+                         Class="mb-4" />
+            
+            <MudNumericField @bind-Value="_editedGame.aggregatedrating" 
+                            Label="Rating" 
+                            Variant="Variant.Outlined"
+                            Min="0"
+                            Max="100"
+                            Class="mb-4" />
+            
+            <MudTextField @bind-Value="_editedGame.summary" 
+                         Label="Summary" 
+                         Variant="Variant.Outlined"
+                         Lines="5"
+                         Class="mb-4" />
+            
+            <MudSelect @bind-Value="_editedGame.status" 
+                      Label="Status" 
+                      Variant="Variant.Outlined"
+                      Class="mb-4">
+                @foreach(var status in _gameStatuses)
+                {
+                    <MudSelectItem Value="@status">@status</MudSelectItem>
+                }
+            </MudSelect>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveChanges">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public GameDAO Game { get; set; }
+
+    private GameDAO _editedGame;
+    private List<string> _gameStatuses = new List<string>
+    {
+        "Not Started",
+        "Playing",
+        "Completed",
+        "Dropped"
+    };
+
+    protected override void OnInitialized()
+    {
+        if (MudDialog is null)
+        {
+            throw new ArgumentNullException(nameof(MudDialog), "MudDialogInstance not injected");
+        }
+
+        // Create a copy of the game to edit
+        _editedGame = new GameDAO
+        {
+            id = Game.id,
+            owner = Game.owner,
+            name = Game.name,
+            platforms = Game.platforms,
+            releasedates = Game.releasedates,
+            genres = Game.genres,
+            aggregatedrating = Game.aggregatedrating,
+            summary = Game.summary,
+            status = Game.status,
+            cover = Game.cover,
+            queuepos = Game.queuepos,
+            involvedcompanies = Game.involvedcompanies,
+            multiplayermodes = Game.multiplayermodes,
+            multiplayermodeflags = Game.multiplayermodeflags,
+            howlongtobeat = Game.howlongtobeat,
+            metacriticscore = Game.metacriticscore
+        };
+    }
+
+    private async Task OpenIdentifyDialog()
+    {
+        try
+        {
+            var parameters = new DialogParameters
+            {
+                { "GameName", _editedGame.name ?? string.Empty },
+                { "CurrentGame", _editedGame }
+            };
+
+            var options = new DialogOptions 
+            { 
+                MaxWidth = MaxWidth.Medium, 
+                FullWidth = true,
+                CloseOnEscapeKey = true 
+            };
+
+            var dialog = await DialogService.ShowAsync<IdentifyGameDialog>("Identify Game", parameters, options);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is Game selectedGame)
+            {
+                // Update the edited game with data from IGDB
+                _editedGame.name = selectedGame.name ?? _editedGame.name;
+                _editedGame.aggregatedrating = selectedGame.aggregated_rating > 0 ? selectedGame.aggregated_rating : _editedGame.aggregatedrating;
+                _editedGame.cover = selectedGame.cover > 0 ? selectedGame.cover : _editedGame.cover;
+                _editedGame.summary = selectedGame.summary ?? _editedGame.summary;
+
+                // Update platforms
+                if (selectedGame.platforms?.Any() == true)
+                {
+                    _editedGame.platforms = string.Join(", ", selectedGame.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)));
+                }
+
+                // Update release dates
+                if (selectedGame.release_dates?.Any() == true)
+                {
+                    _editedGame.releasedates = selectedGame.release_dates.FirstOrDefault()?.human ?? _editedGame.releasedates;
+                }
+
+                // Update genres
+                if (selectedGame.genres?.Any() == true)
+                {
+                    _editedGame.genres = string.Join(", ", selectedGame.genres.Select(g => g.Name).Where(n => !string.IsNullOrEmpty(n)));
+                }
+
+                Snackbar.Add($"Updated game information from IGDB", Severity.Success);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in OpenIdentifyDialog: {ex}");
+            Snackbar.Add("Error identifying game", Severity.Error);
+        }
+    }
+
+    private void SaveChanges()
+    {
+        try
+        {
+            Console.WriteLine($"Edited game: {JsonConvert.SerializeObject(_editedGame)}");
+            MudDialog.Close(DialogResult.Ok(_editedGame));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in SaveChanges: {ex}");
+            Snackbar.Add("Error saving game data", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog?.Close(DialogResult.Cancel());
+}

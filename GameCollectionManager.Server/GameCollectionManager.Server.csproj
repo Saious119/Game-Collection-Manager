@@ -27,6 +27,7 @@
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\GameCollectionManager.Client\GameCollectionManager.Client.csproj" />
     <ProjectReference Include="..\GameCollectionManager.Shared\GameCollectionManager.Shared.csproj" />
   </ItemGroup>
 </Project>
