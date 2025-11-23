@@ -18,192 +18,226 @@
 
 <PageTitle>Game Collection</PageTitle>
 
-<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
-    <MudTabPanel Text="Games">
-        <MudDataGrid Items="@games" Dense="true" Hover="true" Bordered="true" Striped="true" 
-            QuickFilter="@QuickFilter">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">Games Collection</MudText>
-                <MudSpacer />
-                <MudTextField @bind-Value="searchString" 
-                            Placeholder="Search" 
-                            Adornment="Adornment.Start"
-                            AdornmentIcon="@Icons.Material.Filled.Search" 
-                            IconSize="Size.Medium" 
-                            Class="mt-0 ml-4"
-                            Immediate="true"
-                            @bind-Value:after="@(() => InvokeAsync(StateHasChanged))" />
-                <MudSpacer />
-                <MudButton Color="Color.Primary"
-                           Variant="Variant.Filled"
-                           OnClick="OpenAddGameDialog"
-                           StartIcon="@Icons.Material.Filled.Add">
-                    Add Game
-                </MudButton>
-            </ToolBarContent>
-            <Columns>
-				<PropertyColumn Property="x => x.name" Title="Title" />
-                <PropertyColumn Property="x => GetFirstPlatformName(x)" Title="Platform" />
-                <PropertyColumn Property="x => GetFirstReleaseDate(x)" Title="Release Date" />
-                <PropertyColumn Property="x => x.aggregatedrating" Title="Rating" />
-                <PropertyColumn Property="x => x.genres" Title="Genres" />
-                <PropertyColumn Property="x => x.status" Title="Status">
-                    <CellTemplate Context="gameContext">
-                        <MudSelect T="string" 
-                                  Value="@(((GameDAO)gameContext.Item).status)" 
-                                  ValueChanged="@(async (string value) => await UpdateGameStatus((GameDAO)gameContext.Item, value))"
-                                  Dense="true"
-                                  Margin="Margin.Dense"
-                                  OffsetY="true">
-                            @foreach(var status in gameStatuses)
-                            {
-                                <MudSelectItem Value="@status">@status</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </CellTemplate>
-                </PropertyColumn>
-                <TemplateColumn Title="Actions">
-                    <CellTemplate Context="gameContext">
-                        <div class="d-flex gap-2">  @* This creates a flex container with gap between buttons *@
-                            <MudButton Variant="Variant.Filled" 
-                                      Color="Color.Primary" 
-                                      Size="Size.Small"
-                                      OnClick="@(() => AddToQueue((GameDAO)gameContext.Item))"
-                                      Disabled="@(((GameDAO)gameContext.Item).queuepos != null || _processing)"
-                                      Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
-                                      Class="fixed-width-button"> 
-                                @if (_processingId == ((GameDAO)gameContext.Item).id)
+<div class="full-height-container">
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Class="full-height-tabs">
+        <MudTabPanel Text="Games" Class="full-height-panel">
+            <MudDataGrid Items="@FilteredGames" Dense="true" Hover="true" Bordered="true" Striped="true" 
+                Virtualize="true"
+                FixedHeader="true"
+                Class="full-height-grid">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Games Collection</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="searchString" 
+                                Placeholder="Search" 
+                                Adornment="Adornment.Start"
+                                AdornmentIcon="@Icons.Material.Filled.Search" 
+                                IconSize="Size.Medium" 
+                                Class="mt-0 ml-4"
+                                Immediate="true"
+                                @bind-Value:after="@(() => InvokeAsync(StateHasChanged))" />
+                    <MudSpacer />
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               OnClick="OpenAddGameDialog"
+                               StartIcon="@Icons.Material.Filled.Add">
+                        Add Game
+                    </MudButton>
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.name" Title="Title" />
+                    <PropertyColumn Property="x => GetFirstPlatformName(x)" Title="Platform" />
+                    <PropertyColumn Property="x => GetFirstReleaseDate(x)" Title="Release Date" />
+                    <PropertyColumn Property="x => x.aggregatedrating" Title="Rating" />
+                    <PropertyColumn Property="x => x.genres" Title="Genres" />
+                    <PropertyColumn Property="x => x.status" Title="Status">
+                        <CellTemplate Context="gameContext">
+                            <MudSelect T="string" 
+                                      Value="@(((GameDAO)gameContext.Item).status)" 
+                                      ValueChanged="@(async (string value) => await UpdateGameStatus((GameDAO)gameContext.Item, value))"
+                                      Dense="true"
+                                      Margin="Margin.Dense"
+                                      OffsetY="true">
+                                @foreach(var status in gameStatuses)
                                 {
-                                    <span>Adding...</span>
+                                    <MudSelectItem Value="@status">@status</MudSelectItem>
                                 }
-                                else if(((GameDAO)gameContext.Item).queuepos != null)
-                                {
-                                    <span>In Queue</span>
-								}
-                                else
-                                {
-                                    <span>Add to Queue</span>
-                                }
-                            </MudButton>
+                            </MudSelect>
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <TemplateColumn Title="Actions">
+                        <CellTemplate Context="gameContext">
+                            <div class="d-flex gap-2">
+                                <MudButton Variant="Variant.Filled" 
+                                          Color="Color.Primary" 
+                                          Size="Size.Small"
+                                          OnClick="@(() => AddToQueue((GameDAO)gameContext.Item))"
+                                          Disabled="@(((GameDAO)gameContext.Item).queuepos != null || _processing)"
+                                          Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
+                                          Class="fixed-width-button"> 
+                                    @if (_processingId == ((GameDAO)gameContext.Item).id)
+                                    {
+                                        <span>Adding...</span>
+                                    }
+                                    else if(((GameDAO)gameContext.Item).queuepos != null)
+                                    {
+                                        <span>In Queue</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Add to Queue</span>
+                                    }
+                                </MudButton>
 
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                      Variant="Variant.Filled" 
-                                      Color="Color.Info" 
-                                      Size="Size.Small"
-                                      aria-label="edit"
-                                      OnClick="@(async () => await OpenEditGameDialog((GameDAO)gameContext.Item))">
-                            </MudIconButton>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                          Variant="Variant.Filled" 
+                                          Color="Color.Info" 
+                                          Size="Size.Small"
+                                          aria-label="edit"
+                                          OnClick="@(async () => await OpenEditGameDialog((GameDAO)gameContext.Item))">
+                                </MudIconButton>
 
-                            <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" 
-                                      Variant="Variant.Filled" 
-                                      Color="Color.Error" 
-                                      Size="Size.Small"
-                                      aria-label="delete"
-                                      OnClick="@(async () => await DeleteGameWithConfirmation((GameDAO)gameContext.Item))"
-                                      Loading="@(_deletingId == ((GameDAO)gameContext.Item).id)">
-                                @if (_deletingId == ((GameDAO)gameContext.Item).id)
-                                {
-                                    <span>Deleting...</span>
-                                }
-                                else
-                                {
-                                    <span>Delete</span>
-                                }
-                            </MudIconButton>
-                        </div>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-        </MudDataGrid>
-    </MudTabPanel>
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteForever" 
+                                          Variant="Variant.Filled" 
+                                          Color="Color.Error" 
+                                          Size="Size.Small"
+                                          aria-label="delete"
+                                          OnClick="@(async () => await DeleteGameWithConfirmation((GameDAO)gameContext.Item))"
+                                          Loading="@(_deletingId == ((GameDAO)gameContext.Item).id)">
+                                    @if (_deletingId == ((GameDAO)gameContext.Item).id)
+                                    {
+                                        <span>Deleting...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Delete</span>
+                                    }
+                                </MudIconButton>
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudTabPanel>
 
-    <MudTabPanel Text="Queue">
-        <MudDataGrid Items="@queueGames" 
-                     Dense="true" 
-                     Hover="true" 
-                     Bordered="true" 
-                     Striped="true"
-                     QuickFilter="@QuickQueueFilter"
-                     RowsDraggable="true"
-                     DragDropColumn="0"
-                     RowDrop="OnRowDrop">  @* Changed to RowDrop *@
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">Game Queue</MudText>
-                <MudSpacer />
-                <MudTextField @bind-Value="queueSearchString" 
-                             Placeholder="Search" 
-                             Adornment="Adornment.Start"
-                             AdornmentIcon="@Icons.Material.Filled.Search" 
-                             IconSize="Size.Medium" 
-                             Class="mt-0"
-                             Immediate="true"
-                             @bind-Value:after="@(() => InvokeAsync(StateHasChanged))" />
-            </ToolBarContent>
-            <Columns>
-                <PropertyColumn Property="x => x.queuepos" Title="#" />
-                <PropertyColumn Property="x => x.name" Title="Title" />
-                <PropertyColumn Property="x => GetFirstPlatformName(x)" Title="Platform" />
-                <PropertyColumn Property="x => GetFirstReleaseDate(x)" Title="Release Date" />
-                <PropertyColumn Property="x => x.aggregatedrating" Title="Rating" />
-                <PropertyColumn Property="x => x.status" Title="Status">
-                    <CellTemplate Context="gameContext">
-                        <MudSelect T="string" 
-                                  Value="@(((GameDAO)gameContext.Item).status)" 
-                                  ValueChanged="@(async (string value) => await UpdateGameStatus((GameDAO)gameContext.Item, value))"
-                                  Dense="true"
-                                  Margin="Margin.Dense"
-                                  OffsetY="true">
-                            @foreach(var status in gameStatuses)
-                            {
-                                <MudSelectItem Value="@status">@status</MudSelectItem>
-                            }
-                        </MudSelect>
-                    </CellTemplate>
-                </PropertyColumn>
-                <TemplateColumn Title="Actions">
-                    <CellTemplate Context="gameContext">
-                        <div class="d-flex gap-2">
-                            <MudButton Variant="Variant.Filled" 
-                                      Color="Color.Primary" 
-                                      Size="Size.Small"
-                                      OnClick="@(() => RemoveFromQueue((GameDAO)gameContext.Item))"
-                                      Disabled="@(((GameDAO)gameContext.Item).queuepos == null || _processing)"
-                                      Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
-                                      Class="fixed-width-queue-button">
-                                @if (_processingId == ((GameDAO)gameContext.Item).id)
+        <MudTabPanel Text="Queue" Class="full-height-panel">
+            <MudDataGrid Items="@FilteredQueueGames" 
+                         Dense="true" 
+                         Hover="true" 
+                         Bordered="true" 
+                         Striped="true"
+                         RowsDraggable="true"
+                         DragDropColumn="0"
+                         RowDrop="OnRowDrop"
+                         Virtualize="true"
+                         FixedHeader="true"
+                         Class="full-height-grid">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Game Queue</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="queueSearchString" 
+                                 Placeholder="Search" 
+                                 Adornment="Adornment.Start"
+                                 AdornmentIcon="@Icons.Material.Filled.Search" 
+                                 IconSize="Size.Medium" 
+                                 Class="mt-0"
+                                 Immediate="true"
+                                 @bind-Value:after="@(() => InvokeAsync(StateHasChanged))" />
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn Property="x => x.queuepos" Title="#" />
+                    <PropertyColumn Property="x => x.name" Title="Title" />
+                    <PropertyColumn Property="x => GetFirstPlatformName(x)" Title="Platform" />
+                    <PropertyColumn Property="x => GetFirstReleaseDate(x)" Title="Release Date" />
+                    <PropertyColumn Property="x => x.aggregatedrating" Title="Rating" />
+                    <PropertyColumn Property="x => x.status" Title="Status">
+                        <CellTemplate Context="gameContext">
+                            <MudSelect T="string" 
+                                      Value="@(((GameDAO)gameContext.Item).status)" 
+                                      ValueChanged="@(async (string value) => await UpdateGameStatus((GameDAO)gameContext.Item, value))"
+                                      Dense="true"
+                                      Margin="Margin.Dense"
+                                      OffsetY="true">
+                                @foreach(var status in gameStatuses)
                                 {
-                                    <span>Removing...</span>
+                                    <MudSelectItem Value="@status">@status</MudSelectItem>
                                 }
-                                else
-                                {
-                                    <span>Remove From Queue</span>
-                                }
-                            </MudButton>
+                            </MudSelect>
+                        </CellTemplate>
+                    </PropertyColumn>
+                    <TemplateColumn Title="Actions">
+                        <CellTemplate Context="gameContext">
+                            <div class="d-flex gap-2">
+                                <MudButton Variant="Variant.Filled" 
+                                          Color="Color.Primary" 
+                                          Size="Size.Small"
+                                          OnClick="@(() => RemoveFromQueue((GameDAO)gameContext.Item))"
+                                          Disabled="@(((GameDAO)gameContext.Item).queuepos == null || _processing)"
+                                          Loading="@(_processingId == ((GameDAO)gameContext.Item).id)"
+                                          Class="fixed-width-queue-button">
+                                    @if (_processingId == ((GameDAO)gameContext.Item).id)
+                                    {
+                                        <span>Removing...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Remove From Queue</span>
+                                    }
+                                </MudButton>
 
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" 
-                                      Variant="Variant.Filled" 
-                                      Color="Color.Info" 
-                                      Size="Size.Small"
-                                      aria-label="edit"
-                                      OnClick="@(async () => await OpenEditGameDialog((GameDAO)gameContext.Item))">
-                            </MudIconButton>
-                        </div>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-        </MudDataGrid>
-    </MudTabPanel>
-</MudTabs>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                          Variant="Variant.Filled" 
+                                          Color="Color.Info" 
+                                          Size="Size.Small"
+                                          aria-label="edit"
+                                          OnClick="@(async () => await OpenEditGameDialog((GameDAO)gameContext.Item))">
+                                </MudIconButton>
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudTabPanel>
+    </MudTabs>
+</div>
 
 <style>
+    .full-height-container {
+        height: calc(100vh - 3.5rem); /* Subtract header height */
+        display: flex;
+        flex-direction: column;
+    }
+
+    .full-height-tabs {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .full-height-tabs .mud-tabs-panels {
+        flex: 1;
+        overflow: hidden;
+    }
+
+    .full-height-panel {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .full-height-grid {
+        height: 100%;
+    }
+
     .mud-grid-item.mud-dragging {
         background-color: var(--mud-palette-background-grey);
         opacity: 0.8;
     }
 
     .fixed-width-button {
-        width: 130px;  /* Adjust this value based on your needs */
+        width: 130px;
     }
+    
     .fixed-width-queue-button {
         width: 170px;
     }
@@ -235,9 +269,6 @@
         user = AuthUser.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.UniqueName)?.Value
                           ?? AuthUser.Identity?.Name;
         
-        // If you want to use username instead, use this:
-        // user = authState.User.FindFirst(JwtRegisteredClaimNames.UniqueName)?.Value;
-        
         if (string.IsNullOrEmpty(user))
         {
             user = "unknown";
@@ -256,7 +287,6 @@
             {
                 try
                 {
-
                     games = JsonConvert.DeserializeObject<List<GameDAO>>(response) ?? new();
                     queueGames = games.Where(g => g.queuepos != null)
                                     .OrderBy(g => g.queuepos)
@@ -283,7 +313,6 @@
         }
     }
 
-    // Add methods for CRUD operations
     private async Task AddGame(GameDAO game)
     {
         try
@@ -293,7 +322,7 @@
             var response = await Http.PostAsJsonAsync($"api/GameCollection/AddNewGame?user={user}", game);
             if (response.IsSuccessStatusCode)
             {
-                await OnInitializedAsync();
+                await RefreshGames();
             }
             else
             {
@@ -314,7 +343,7 @@
             var response = await Http.PostAsJsonAsync($"api/GameCollection/DeleteGame?user={user}", game);
             if (response.IsSuccessStatusCode)
             {
-                await OnInitializedAsync();
+                await RefreshGames();
             }
             else
             {
@@ -328,7 +357,6 @@
         }
     }
 
-
     private async Task AddToQueue(GameDAO game)
     {
         try
@@ -341,7 +369,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Snackbar.Add($"{game.name} added to queue", Severity.Success);
-                await OnInitializedAsync();
+                await RefreshGames();
             }
             else
             {
@@ -375,7 +403,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Snackbar.Add($"{game.name} Removed from queue", Severity.Success);
-                await OnInitializedAsync();
+                await RefreshGames();
             }
             else
             {
@@ -450,7 +478,7 @@
                     if (response.IsSuccessStatusCode)
                     {
                         Snackbar.Add($"Updated {editedGame.name} successfully", Severity.Success);
-                        await OnInitializedAsync();
+                        await RefreshGames();
                     }
                     else
                     {
@@ -473,28 +501,75 @@
         }
     }
 
-    private string GetFirstPlatformName(GameDAO game)
+    private IEnumerable<GameDAO> FilteredGames => 
+        string.IsNullOrWhiteSpace(searchString) 
+            ? games 
+            : games.Where(x => x.name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
+
+    private IEnumerable<GameDAO> FilteredQueueGames => 
+        string.IsNullOrWhiteSpace(queueSearchString) 
+            ? queueGames 
+            : queueGames.Where(x => x.name?.Contains(queueSearchString, StringComparison.OrdinalIgnoreCase) == true);
+
+    private async Task RefreshGames()
     {
-        try
-        {
-            string gameAsText = JsonConvert.SerializeObject(game);
-            return game?.platforms ?? string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
+        await LoadGames();
+        StateHasChanged();
     }
 
+    private readonly Dictionary<int, string> _platformCache = new();
+    private readonly Dictionary<int, string> _releaseDateCache = new();
+    
+    private string GetFirstPlatformName(GameDAO game)
+    {
+        if (_platformCache.TryGetValue(game.id, out var cached))
+            return cached;
+            
+        var result = game?.platforms ?? string.Empty;
+        _platformCache[game.id] = result;
+        return result;
+    }
+    
     private string GetFirstReleaseDate(GameDAO game)
     {
+        if (_releaseDateCache.TryGetValue(game.id, out var cached))
+            return cached;
+
+        var result = game?.releasedates ?? string.Empty;
+        _releaseDateCache[game.id] = result;
+        return result;
+    }
+
+    private async Task OnRowDrop(MudItemDropInfo<GameDAO> dropInfo)
+    {
+        if (dropInfo.Item == null) return;
+        
+        var oldIndex = queueGames.IndexOf(dropInfo.Item);
+        var newIndex = dropInfo.IndexInZone;
+        
+        if (oldIndex == newIndex) return;
+        
+        queueGames.RemoveAt(oldIndex);
+        queueGames.Insert(newIndex, dropInfo.Item);
+        
+        for (int i = 0; i < queueGames.Count; i++)
+        {
+            queueGames[i].queuepos = i + 1;
+        }
+        
         try
         {
-            return game?.releasedates ?? string.Empty;
+            foreach (var game in queueGames)
+            {
+                await Http.PostAsJsonAsync($"api/GameCollection/AddNewGame?user={user}", game);
+            }
+            Snackbar.Add("Queue order updated", Severity.Success);
         }
-        catch
+        catch (Exception ex)
         {
-            return string.Empty;
+            Console.WriteLine($"Error updating queue order: {ex.Message}");
+            Snackbar.Add("Error updating queue order", Severity.Error);
+            await RefreshGames();
         }
     }
 
@@ -520,7 +595,7 @@
                 if (response.IsSuccessStatusCode)
                 {
                     Snackbar.Add($"{game.name} deleted successfully", Severity.Success);
-                    await OnInitializedAsync();
+                    await RefreshGames();
                 }
                 else
                 {
@@ -542,28 +617,6 @@
         }
     }
 
-    private Func<GameDAO, bool> QuickFilter => x =>
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-
-        if (x.name != null && x.name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return false;
-    };
-
-    private Func<GameDAO, bool> QuickQueueFilter => x =>
-    {
-        if (string.IsNullOrWhiteSpace(queueSearchString))
-            return true;
-
-        if (x.name != null && x.name.Contains(queueSearchString, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        return false;
-    };
-
     private async Task UpdateGameStatus(GameDAO game, string newStatus)
     {
         try
@@ -574,7 +627,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Snackbar.Add($"Updated status for {game.name} to {newStatus}", Severity.Success);
-                await OnInitializedAsync(); // Refresh the data
+                await RefreshGames();
             }
             else
             {
