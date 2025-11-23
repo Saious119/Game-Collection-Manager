@@ -5,6 +5,7 @@
 @using CsvHelper.Configuration
 @using System.Globalization
 @using System.IO
+@using System.Threading
 @using GameCollectionManager.Client.Shared
 @using GameCollectionManager.Shared.Models
 @using Microsoft.AspNetCore.Components.Authorization
@@ -240,10 +241,10 @@
 
     public class ProcessingSummary
     {
-        public int SuccessCount { get; set; }
-        public int FailedCount { get; set; }
-        public int IgdbMatchCount { get; set; }
-        public int NoMatchCount { get; set; }
+        public int SuccessCount;
+        public int FailedCount;
+        public int IgdbMatchCount;
+        public int NoMatchCount;
     }
 
     public class ProcessedGameResult
@@ -381,7 +382,6 @@
                 const long maxFileSize = 10 * 1024 * 1024;
                 using var stream = file.OpenReadStream(maxFileSize);
                 
-                // Read the stream asynchronously into memory first
                 using var memoryStream = new MemoryStream();
                 await stream.CopyToAsync(memoryStream);
                 memoryStream.Position = 0;
@@ -401,72 +401,34 @@
             _totalGames = steamGames.Count;
             StateHasChanged();
 
-            // Step 2: Process each game - search IGDB and add to database
+            // Step 2: Process games in parallel batches
             var summary = new ProcessingSummary();
+            const int batchSize = 10;
+            const int uiUpdateInterval = 5;
             
-            foreach (var steamGame in steamGames)
+            for (int i = 0; i < steamGames.Count; i += batchSize)
             {
-                _currentProgress++;
-                StateHasChanged();
-
-                var result = new ProcessedGameResult();
-
-                try
+                var batch = steamGames.Skip(i).Take(batchSize).ToList();
+                var tasks = batch.Select(steamGame => ProcessSingleGame(steamGame, summary)).ToList();
+                
+                var batchResults = await Task.WhenAll(tasks);
+                _processedGames.AddRange(batchResults);
+                
+                _currentProgress = Math.Min(i + batchSize, steamGames.Count);
+                
+                if (_currentProgress % uiUpdateInterval == 0 || _currentProgress == steamGames.Count)
                 {
-                    GameDAO gameDao;
-                    
-                    // Search IGDB for the game
-                    var igdbGame = await SearchIGDB(steamGame.game ?? "");
-                    
-                    if (igdbGame != null)
-                    {
-                        // IGDB match found - use IGDB data
-                        gameDao = ConvertIGDBGameToDAO(igdbGame, steamGame);
-                        result.HadIgdbMatch = true;
-                        summary.IgdbMatchCount++;
-                    }
-                    else
-                    {
-                        // No IGDB match - use Steam data only
-                        gameDao = ConvertSteamGameToDAO(steamGame);
-                        result.HadIgdbMatch = false;
-                        summary.NoMatchCount++;
-                    }
-
-                    result.Game = gameDao;
-
-                    // Add game to database
-                    var (addSuccess, errorMessage) = await AddGameToDatabase(gameDao);
-                    result.UploadSuccess = addSuccess;
-                    result.ErrorMessage = errorMessage;
-                    
-                    if (addSuccess)
-                    {
-                        summary.SuccessCount++;
-                    }
-                    else
-                    {
-                        summary.FailedCount++;
-                    }
-
-                    _processedGames.Add(result);
-
-                    // Small delay to avoid rate limiting
-                    await Task.Delay(100);
+                    StateHasChanged();
                 }
-                catch (Exception ex)
+                
+                if (i + batchSize < steamGames.Count)
                 {
-                    Console.WriteLine($"Error processing game '{steamGame.game}': {ex.Message}");
-                    result.Game = new GameDAO { name = steamGame.game ?? "Unknown" };
-                    result.UploadSuccess = false;
-                    result.HadIgdbMatch = false;
-                    result.ErrorMessage = $"Exception occurred: {ex.Message}";
-                    _processedGames.Add(result);
-                    summary.FailedCount++;
+                    await Task.Delay(50);
                 }
             }
 
             _processingSummary = summary;
+            StateHasChanged();
             Snackbar.Add($"Processing complete! Added {summary.SuccessCount} games", MudBlazor.Severity.Success);
         }
         catch (Exception ex)
@@ -478,6 +440,57 @@
             _processing = false;
             StateHasChanged();
         }
+    }
+
+    private async Task<ProcessedGameResult> ProcessSingleGame(SteamLibraryModel steamGame, ProcessingSummary summary)
+    {
+        var result = new ProcessedGameResult();
+
+        try
+        {
+            GameDAO gameDao;
+            
+            var igdbGame = await SearchIGDB(steamGame.game ?? "");
+            
+            if (igdbGame != null)
+            {
+                gameDao = ConvertIGDBGameToDAO(igdbGame, steamGame);
+                result.HadIgdbMatch = true;
+                Interlocked.Increment(ref summary.IgdbMatchCount);
+            }
+            else
+            {
+                gameDao = ConvertSteamGameToDAO(steamGame);
+                result.HadIgdbMatch = false;
+                Interlocked.Increment(ref summary.NoMatchCount);
+            }
+
+            result.Game = gameDao;
+
+            var (addSuccess, errorMessage) = await AddGameToDatabase(gameDao);
+            result.UploadSuccess = addSuccess;
+            result.ErrorMessage = errorMessage;
+            
+            if (addSuccess)
+            {
+                Interlocked.Increment(ref summary.SuccessCount);
+            }
+            else
+            {
+                Interlocked.Increment(ref summary.FailedCount);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing game '{steamGame.game}': {ex.Message}");
+            result.Game = new GameDAO { name = steamGame.game ?? "Unknown" };
+            result.UploadSuccess = false;
+            result.HadIgdbMatch = false;
+            result.ErrorMessage = $"Exception occurred: {ex.Message}";
+            Interlocked.Increment(ref summary.FailedCount);
+        }
+
+        return result;
     }
 
     private string GetRowClass(ProcessedGameResult result)
