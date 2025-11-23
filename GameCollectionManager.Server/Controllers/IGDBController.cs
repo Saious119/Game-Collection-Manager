@@ -23,7 +23,14 @@ namespace GameCollectionManagerAPI.Controllers
             try
             {
                 var result = await _iGDB_Service.GetIGDBInfo(game);
-                result.multiplayer_mode_flags = await _iGDB_Service.GetMultiplayerModes(result.id);
+                try
+                {
+                    result.multiplayer_mode_flags = await _iGDB_Service.GetMultiplayerModes(result.id);
+                }
+                catch (Exception ex)
+                {
+                    log.Warn($"Error fetching multiplayer modes for {game}: {ex.Message}");
+                }
                 return Ok(result);
             }
             catch (Exception ex)

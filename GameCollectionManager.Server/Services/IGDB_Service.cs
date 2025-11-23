@@ -14,25 +14,86 @@ public class IGDB_Service : IIGDB_Service
     {
         var authToken = await GetIGDBToken();
         var client = new HttpClient();
-        var content = new StringContent(String.Format("search \"{0}\"; fields id,aggregated_rating,cover,release_dates.human, genres.name,involved_companies.company.name,multiplayer_modes,name,platforms.name,summary; limit 1;", gameName), Encoding.UTF8, "text/plain");
-        var request = new HttpRequestMessage
+        
+        // First try: exact name match using 'where' clause
+        var exactMatchContent = new StringContent(
+            String.Format("where name ~ *\"{0}\"*; fields id,aggregated_rating,cover,release_dates.human, genres.name,involved_companies.company.name,multiplayer_modes,name,platforms.name,summary; limit 5;", 
+            gameName), 
+            Encoding.UTF8, 
+            "text/plain");
+        
+        var exactRequest = new HttpRequestMessage
         {
             Method = HttpMethod.Post,
             RequestUri = new Uri(baseIGDBUrl),
-            Content = content,
+            Content = exactMatchContent,
             Headers =
             {
                 { "Client-ID", StaticVariables.IGDB_CLIENT_ID },
                 { "Authorization", authToken },
             }
         };
-        using (var response = await client.SendAsync(request))
+        
+        using (var response = await client.SendAsync(exactRequest))
         {
             response.EnsureSuccessStatusCode();
             var body = await response.Content.ReadAsStringAsync();
             List<Game> results = JsonConvert.DeserializeObject<List<Game>>(body);
-            Console.WriteLine(body);
-            return results.First();
+            
+            if (results != null && results.Any())
+            {
+                // Try to find an exact match (case-insensitive)
+                var exactMatch = results.FirstOrDefault(g => 
+                    string.Equals(g.name, gameName, StringComparison.OrdinalIgnoreCase));
+                
+                if (exactMatch != null)
+                {
+                    Console.WriteLine($"Found exact match for '{gameName}': {exactMatch.name}");
+                    return exactMatch;
+                }
+                
+                // Return the first result if no exact match
+                Console.WriteLine($"No exact match for '{gameName}', using first result: {results.First().name}");
+                return results.First();
+            }
+        }
+        
+        // Fallback to search if exact match fails
+        var searchContent = new StringContent(
+            String.Format("search \"{0}\"; fields id,aggregated_rating,cover,release_dates.human, genres.name,involved_companies.company.name,multiplayer_modes,name,platforms.name,summary; limit 5;", 
+            gameName), 
+            Encoding.UTF8, 
+            "text/plain");
+        
+        var searchRequest = new HttpRequestMessage
+        {
+            Method = HttpMethod.Post,
+            RequestUri = new Uri(baseIGDBUrl),
+            Content = searchContent,
+            Headers =
+            {
+                { "Client-ID", StaticVariables.IGDB_CLIENT_ID },
+                { "Authorization", authToken },
+            }
+        };
+        
+        using (var response = await client.SendAsync(searchRequest))
+        {
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content.ReadAsStringAsync();
+            List<Game> results = JsonConvert.DeserializeObject<List<Game>>(body);
+            Console.WriteLine($"Search results for '{gameName}': {body}");
+            
+            if (results != null && results.Any())
+            {
+                // Try to find a case-insensitive match
+                var match = results.FirstOrDefault(g => 
+                    string.Equals(g.name, gameName, StringComparison.OrdinalIgnoreCase));
+                
+                return match ?? results.First();
+            }
+            
+            throw new Exception($"No results found for '{gameName}'");
         }
     }
     public async Task<List<Game>> SearchIGDBInfo(string gameName)
