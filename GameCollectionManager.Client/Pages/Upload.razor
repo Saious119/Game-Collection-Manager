@@ -52,6 +52,19 @@
 </style>
 
 <MudStack Style="width: 100%">
+    <MudText Typo="Typo.body1" Class="mb-4">
+        To upload your Steam library CSV file, export your library from Steam using the tool 
+        <MudLink Href="https://www.lorenzostanco.com/lab/steam/" Target="_blank" Underline="Underline.Always" Color="Color.Primary">
+            <strong>Steam Filters</strong>
+        </MudLink>.
+        Simply enter your Steam name and click <strong>Export To CSV</strong> under the settings drop down.
+    </MudText>
+    <MudAlert Severity="MudBlazor.Severity.Warning" Class="mb-4">
+        <strong>Important:</strong> DO NOT CHANGE ANY SETTINGS BEFORE EXPORTING.
+    </MudAlert>
+    <MudText Typo="Typo.body1" Class="mb-4">
+        Once exported, drag and drop the .csv file into the box below and click <strong>Upload & Process</strong> to import.
+    </MudText>
     <MudForm Model="@_model"
              @bind-IsValid="_isValid"
              @bind-IsTouched="_isTouched"
@@ -75,7 +88,7 @@
                               Outlined="true"
                               Class="@_dragClass">
                         <MudText Typo="Typo.h6">
-                            Drag and drop CSV files here or click
+                            Drag and drop CSV file here or click
                         </MudText>
                         @foreach (var file in _model.Files?.Select(file => file.Name) ?? Enumerable.Empty<string>())
                         {
@@ -123,9 +136,6 @@
                 </MudText>
             </MudItem>
         }
-        <MudItem xs="12">
-            IsValid: @_isValid - IsTouched: @_isTouched
-        </MudItem>
         @if (_processedGames.Any())
         {
             <MudItem xs="12">
