@@ -4,7 +4,7 @@ services:
     name: game-collection-api
     runtime: docker
     plan: free
-    region: oregon
+    region: ohio
     branch: master
     dockerfilePath: ./GameCollectionManager.Server/Dockerfile
     envVars:
