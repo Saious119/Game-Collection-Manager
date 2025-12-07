@@ -13,9 +13,7 @@ services:
       - key: ASPNETCORE_URLS
         value: http://+:10000
       - key: gamedb_connect_string
-        fromDatabase:
-          name: game-collection-db
-          property: connectionString
+        sync: false  # Add manually in Render dashboard - your external PostgreSQL connection string
       - key: IGDB_CLIENT_ID
         sync: false  # Add manually in Render dashboard
       - key: IGDB_CLIENT_SECRET
@@ -32,11 +30,6 @@ services:
         value: GameCollectionManager
       - key: JWT_AUDIENCE
         value: GameCollectionManagerClient
+      - key: CLIENT_URL
+        sync: false  # Add your custom domain
     healthCheckPath: /
-
-  # PostgreSQL Database
-databases:
-  - name: game-collection-db
-    plan: free
-    databaseName: gamedb
-    user: gamedb_user
