@@ -1,0 +1,42 @@
+services:
+  # Backend API
+  - type: web
+    name: game-collection-api
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: master
+    dockerfilePath: ./GameCollectionManager.Server/Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+      - key: gamedb_connect_string
+        fromDatabase:
+          name: game-collection-db
+          property: connectionString
+      - key: IGDB_CLIENT_ID
+        sync: false  # Add manually in Render dashboard
+      - key: IGDB_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_CLIENT_SECRET
+        sync: false
+      - key: DISCORD_REDIRECT_URI
+        value: https://game-collection-api.onrender.com/api/auth/discord/callback
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ISSUER
+        value: GameCollectionManager
+      - key: JWT_AUDIENCE
+        value: GameCollectionManagerClient
+    healthCheckPath: /
+
+  # PostgreSQL Database
+databases:
+  - name: game-collection-db
+    plan: free
+    databaseName: gamedb
+    user: gamedb_user
