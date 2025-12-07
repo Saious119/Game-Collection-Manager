@@ -26,13 +26,11 @@ namespace GameCollectionManagerAPI
             builder.Services.AddSingleton<StaticVariables>();
             builder.Services.AddSwaggerGen();
 
-            // Remove session - not needed for Blazor WASM
-            // builder.Services.AddDistributedMemoryCache();
-            // builder.Services.AddSession(...);
-
             // Add JWT Authentication
             var jwtSettings = config.GetSection("JwtSettings");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? 
+                            jwtSettings["SecretKey"] ?? 
+                            throw new InvalidOperationException("JWT SecretKey not configured");
             
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -43,18 +41,34 @@ namespace GameCollectionManagerAPI
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
-                        ValidIssuer = jwtSettings["Issuer"],
-                        ValidAudience = jwtSettings["Audience"],
+                        ValidIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? jwtSettings["Issuer"],
+                        ValidAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"],
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
                     };
                 });
 
             builder.Services.AddAuthorization();
 
+            // Update CORS for production
+            var allowedOrigins = new List<string>
+            {
+                "https://localhost:7176", 
+                "http://localhost:5272", 
+                "https://localhost:5000", 
+                "http://localhost:5000"
+            };
+            
+            // Add production client URL from environment
+            var productionClientUrl = Environment.GetEnvironmentVariable("CLIENT_URL");
+            if (!string.IsNullOrEmpty(productionClientUrl))
+            {
+                allowedOrigins.Add(productionClientUrl);
+            }
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowClient", builder =>
-                    builder.WithOrigins("https://localhost:7176", "http://localhost:5272", "https://localhost:5000", "http://localhost:5000")
+                    builder.WithOrigins(allowedOrigins.ToArray())
                            .AllowAnyMethod()
                            .AllowAnyHeader()
                            .AllowCredentials());
@@ -70,8 +84,10 @@ namespace GameCollectionManagerAPI
                 app.UseSwaggerUI();
             }
             
-            app.UseHttpsRedirection();
-            app.UseAuthentication(); // Add before UseAuthorization
+            // Render uses HTTP internally, terminates SSL at proxy
+            // app.UseHttpsRedirection(); // Comment out for Render
+            
+            app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
 
