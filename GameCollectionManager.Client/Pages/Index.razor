@@ -57,7 +57,7 @@
                         <PropertyColumn Property="x => x.name" Title="Title" />
                         <PropertyColumn Property="x => x.platforms" Title="Platform" />
                         <PropertyColumn Property="x => x.releasedates" Title="Release Date" />
-                        <PropertyColumn Property="x => x.aggregatedrating" Title="Rating" />
+                        <PropertyColumn Property="x => (int)x.aggregatedrating" Title="Rating" />
                         <PropertyColumn Property="x => x.genres" Title="Genres" />
                         <PropertyColumn Property="x => x.status" Title="Status">
                             <CellTemplate Context="gameContext">
@@ -159,7 +159,7 @@
                         <PropertyColumn Property="x => x.name" Title="Title" />
                         <PropertyColumn Property="x => x.platforms" Title="Platform" />
                         <PropertyColumn Property="x => x.releasedates" Title="Release Date" />
-                        <PropertyColumn Property="x => x.aggregatedrating" Title="Rating" />
+                        <PropertyColumn Property="x => (int)x.aggregatedrating" Title="Rating" />
                         <PropertyColumn Property="x => x.status" Title="Status">
                             <CellTemplate Context="gameContext">
                                 <MudSelect T="string" 

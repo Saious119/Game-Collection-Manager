@@ -24,10 +24,30 @@
                          Variant="Variant.Outlined"
                          Class="mb-4" />
             
-            <MudTextField @bind-Value="_editedGame.platforms" 
-                         Label="Platform(s)" 
-                         Variant="Variant.Outlined"
-                         Class="mb-4" />
+            @if (_availablePlatforms.Any())
+            {
+                <MudText Typo="Typo.body2" Class="mb-2"><strong>Select Platforms:</strong></MudText>
+                <MudPaper Class="pa-3 mb-4" Elevation="0" Outlined="true">
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var platform in _availablePlatforms)
+                        {
+                            <MudCheckBox T="bool" 
+                                        Label="@platform" 
+                                        Dense="true"
+                                        Value="@_selectedPlatforms.Contains(platform)"
+                                        ValueChanged="@((bool selected) => OnPlatformChanged(platform, selected))" />
+                        }
+                    </div>
+                </MudPaper>
+            }
+            else
+            {
+                <MudTextField @bind-Value="_editedGame.platforms" 
+                             Label="Platform(s)" 
+                             Variant="Variant.Outlined"
+                             Class="mb-4"
+                             HelperText="Enter platforms separated by commas" />
+            }
             
             <MudTextField @bind-Value="_editedGame.releasedates" 
                          Label="Release Date" 
@@ -84,6 +104,9 @@
         "Completed",
         "Dropped"
     };
+    
+    private HashSet<string> _availablePlatforms = new();
+    private HashSet<string> _selectedPlatforms = new();
 
     protected override void OnInitialized()
     {
@@ -112,6 +135,42 @@
             howlongtobeat = Game.howlongtobeat,
             metacriticscore = Game.metacriticscore
         };
+
+        // Initialize platforms from existing data
+        InitializePlatforms();
+    }
+
+    private void InitializePlatforms()
+    {
+        if (!string.IsNullOrWhiteSpace(_editedGame.platforms))
+        {
+            var platforms = _editedGame.platforms.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
+
+            foreach (var platform in platforms)
+            {
+                _availablePlatforms.Add(platform);
+                _selectedPlatforms.Add(platform);
+            }
+        }
+    }
+
+    private void OnPlatformChanged(string platformName, bool selected)
+    {
+        if (selected)
+        {
+            _selectedPlatforms.Add(platformName);
+        }
+        else
+        {
+            _selectedPlatforms.Remove(platformName);
+        }
+
+        _editedGame.platforms = _selectedPlatforms.Any() 
+            ? string.Join(", ", _selectedPlatforms) 
+            : string.Empty;
     }
 
     private async Task OpenIdentifyDialog()
@@ -126,7 +185,7 @@
 
             var options = new DialogOptions 
             { 
-                MaxWidth = MaxWidth.Medium, 
+                MaxWidth = MaxWidth.Large, 
                 FullWidth = true,
                 CloseOnEscapeKey = true 
             };
@@ -138,14 +197,33 @@
             {
                 // Update the edited game with data from IGDB
                 _editedGame.name = selectedGame.name ?? _editedGame.name;
+                //if it has a rating use it
                 _editedGame.aggregatedrating = selectedGame.aggregated_rating > 0 ? selectedGame.aggregated_rating : _editedGame.aggregatedrating;
+                //if it has a cover use it
                 _editedGame.cover = selectedGame.cover > 0 ? selectedGame.cover : _editedGame.cover;
                 _editedGame.summary = selectedGame.summary ?? _editedGame.summary;
 
-                // Update platforms
+                // Update platforms from IGDB and create checkboxes
                 if (selectedGame.platforms?.Any() == true)
                 {
-                    _editedGame.platforms = string.Join(", ", selectedGame.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)));
+                    var newPlatforms = selectedGame.platforms
+                        .Select(p => p.name)
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .ToList();
+
+                    // Add new platforms to available list
+                    foreach (var platform in newPlatforms)
+                    {
+                        _availablePlatforms.Add(platform);
+                    }
+
+                    // Keep existing selections and add new ones
+                    foreach (var platform in newPlatforms)
+                    {
+                        _selectedPlatforms.Add(platform);
+                    }
+
+                    _editedGame.platforms = string.Join(", ", _selectedPlatforms);
                 }
 
                 // Update release dates
@@ -175,6 +253,14 @@
     {
         try
         {
+            // Ensure platforms string is updated from selected checkboxes
+            if (_availablePlatforms.Any())
+            {
+                _editedGame.platforms = _selectedPlatforms.Any() 
+                    ? string.Join(", ", _selectedPlatforms) 
+                    : string.Empty;
+            }
+
             Console.WriteLine($"Edited game: {JsonConvert.SerializeObject(_editedGame)}");
             MudDialog.Close(DialogResult.Ok(_editedGame));
         }
