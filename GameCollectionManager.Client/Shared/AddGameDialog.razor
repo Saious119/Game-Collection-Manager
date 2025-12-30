@@ -43,11 +43,26 @@
                             <MudCard Elevation="0">
                                 <MudCardContent>
                                     <MudText Typo="Typo.h6">@game.name</MudText>
-                                    <MudText Typo="Typo.body2">Platform: @GetPlatforms(game)</MudText>
-                                    <MudText Typo="Typo.body2">Release Date: @GetReleaseDate(game)</MudText>
+                                    
+                                    @if (game.platforms != null && game.platforms.Any())
+                                    {
+                                        <MudText Typo="Typo.body2" Class="mt-2 mb-1"><strong>Select Platforms:</strong></MudText>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var platform in game.platforms)
+                                            {
+                                                <MudCheckBox T="bool" 
+                                                            Label="@platform.name" 
+                                                            Dense="true"
+                                                            Value="@IsGamePlatformSelected(game.id, platform.name)"
+                                                            ValueChanged="@((bool selected) => OnPlatformChanged(game.id, platform.name, selected))" />
+                                            }
+                                        </div>
+                                    }
+                                    
+                                    <MudText Typo="Typo.body2" Class="mt-2">Release Date: @GetReleaseDate(game)</MudText>
                                     @if (!string.IsNullOrEmpty(game.summary))
                                     {
-                                        <MudText Typo="Typo.body2" Style="max-height: 100px; overflow-y: auto">
+                                        <MudText Typo="Typo.body2" Style="max-height: 100px; overflow-y: auto" Class="mt-2">
                                             @game.summary
                                         </MudText>
                                     }
@@ -55,7 +70,8 @@
                                 <MudCardActions>
                                     <MudButton Color="Color.Primary" 
                                               Variant="Variant.Filled"
-                                              OnClick="@(() => SelectGame(game))">
+                                              OnClick="@(() => SelectGame(game))"
+                                              Disabled="@(!HasSelectedPlatforms(game.id))">
                                         Select
                                     </MudButton>
                                 </MudCardActions>
@@ -93,6 +109,7 @@
     private bool _processing;
     private bool _searched;
     private List<Game> _searchResults = new();
+    private Dictionary<int, HashSet<string>> _selectedPlatforms = new();
 
     protected override void OnInitialized()
     {
@@ -114,6 +131,7 @@
             var response = await Http.GetFromJsonAsync<List<Game>>($"api/IGDB/Search?name={Uri.EscapeDataString(_searchTerm)}");
             _searchResults = response ?? new();
             _searched = true;
+            _selectedPlatforms.Clear();
         }
         catch (Exception ex)
         {
@@ -131,14 +149,42 @@
         _searchTerm = "";
         _searched = false;
         _searchResults = new();
+        _selectedPlatforms.Clear();
         StateHasChanged();
+    }
+
+    private void OnPlatformChanged(int gameId, string platformName, bool selected)
+    {
+        if (!_selectedPlatforms.ContainsKey(gameId))
+        {
+            _selectedPlatforms[gameId] = new HashSet<string>();
+        }
+
+        if (selected)
+        {
+            _selectedPlatforms[gameId].Add(platformName);
+        }
+        else
+        {
+            _selectedPlatforms[gameId].Remove(platformName);
+        }
+    }
+
+    private bool IsGamePlatformSelected(int gameId, string platformName)
+    {
+        return _selectedPlatforms.ContainsKey(gameId) && _selectedPlatforms[gameId].Contains(platformName);
+    }
+
+    private bool HasSelectedPlatforms(int gameId)
+    {
+        return _selectedPlatforms.ContainsKey(gameId) && _selectedPlatforms[gameId].Any();
     }
 
     private void SelectGame(Game game)
     {
         try
         {
-            string gameplatforms = GetPlatforms(game);
+            string gameplatforms = GetSelectedPlatformsForGame(game.id);
 
 			string genres = GetGenres(game);
 
@@ -167,13 +213,14 @@
 
     private void Cancel() => MudDialog?.Close(DialogResult.Cancel());
 
-    private string GetPlatforms(Game game)
+    private string GetSelectedPlatformsForGame(int gameId)
     {
-        if (game.platforms == null || !game.platforms.Any()) return "Unknown";
-        string gameplatforms = game.platforms?.Any() == true
-            ? string.Join(", ", game.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)))
-            : "";
-        return gameplatforms;
+        if (!_selectedPlatforms.ContainsKey(gameId) || !_selectedPlatforms[gameId].Any())
+        {
+            return "Unknown";
+        }
+        
+        return string.Join(", ", _selectedPlatforms[gameId]);
     }
 
     private string GetReleaseDate(Game game)
@@ -181,6 +228,7 @@
         if (game.release_dates == null || !game.release_dates.Any()) return "TBA";
         return game.release_dates.First().human;
     }
+    
     private string GetGenres(Game game)
     {
         if (game.genres == null || !game.genres.Any()) return "Unknown";
