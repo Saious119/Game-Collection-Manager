@@ -280,6 +280,15 @@
     private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
     private string _dragClass = DefaultDragClass;
 
+    // Allowed platforms - only these will be included
+    private readonly HashSet<string> _allowedPlatforms = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PC (Microsoft Windows)",
+        "Linux",
+        "Mac",
+        "SteamVR"
+    };
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -315,14 +324,15 @@
         {
             try
             {
+                // Filter platforms from IGDB data
+                string filteredPlatforms = FilterPlatforms(selectedGame.platforms);
+                
                 // Create a new GameDAO with the IGDB data, preserving the Steam metadata
                 var updatedGame = new GameDAO
                 {
                     id = selectedGame.id,
                     name = selectedGame.name ?? result.Game.name,
-                    platforms = selectedGame.platforms?.Any() == true
-                        ? string.Join(", ", selectedGame.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)))
-                        : result.Game.platforms,
+                    platforms = !string.IsNullOrWhiteSpace(filteredPlatforms) ? filteredPlatforms : result.Game.platforms,
                     releasedates = selectedGame.release_dates?.FirstOrDefault()?.human ?? result.Game.releasedates ?? "",
                     genres = selectedGame.genres?.Any() == true
                         ? string.Join(", ", selectedGame.genres.Select(g => g.Name).Where(n => !string.IsNullOrEmpty(n)))
@@ -356,6 +366,20 @@
                 Snackbar.Add($"Error updating game: {ex.Message}", MudBlazor.Severity.Error);
             }
         }
+    }
+
+    private string FilterPlatforms(IEnumerable<GameCollectionManager.Shared.Models.Platforms>? platforms)
+    {
+        if (platforms == null || !platforms.Any())
+            return string.Empty;
+
+        var filtered = platforms
+            .Select(p => p.name)
+            .Where(n => !string.IsNullOrEmpty(n) && _allowedPlatforms.Contains(n))
+            .Distinct()
+            .ToList();
+
+        return filtered.Any() ? string.Join(", ", filtered) : string.Empty;
     }
 
     private async Task UploadFiles()
@@ -476,7 +500,7 @@
             }
 
             result.Game = gameDao;
-
+            
             var (addSuccess, errorMessage) = await AddGameToDatabase(gameDao);
             result.UploadSuccess = addSuccess;
             result.ErrorMessage = errorMessage;
@@ -533,9 +557,14 @@
 
     private GameDAO ConvertIGDBGameToDAO(Game igdbGame, SteamLibraryModel steamGame)
     {
-        string platforms = igdbGame.platforms?.Any() == true
-            ? string.Join(", ", igdbGame.platforms.Select(p => p.name).Where(n => !string.IsNullOrEmpty(n)))
-            : "PC";
+        // Filter platforms to only include allowed ones
+        string platforms = FilterPlatforms(igdbGame.platforms);
+        
+        // If no allowed platforms found, default to PC
+        if (string.IsNullOrWhiteSpace(platforms))
+        {
+            platforms = "Steam";
+        }
 
         string genres = igdbGame.genres?.Any() == true
             ? string.Join(", ", igdbGame.genres.Select(g => g.Name).Where(n => !string.IsNullOrEmpty(n)))
@@ -571,7 +600,7 @@
         {
             id = uniqueId,
             name = steamGame.game,
-            platforms = "PC",
+            platforms = "Steam",
             releasedates = steamGame.release_date?.ToString("yyyy-MM-dd") ?? "",
             metacriticscore = steamGame.metascore,
             status = "Not Started",
