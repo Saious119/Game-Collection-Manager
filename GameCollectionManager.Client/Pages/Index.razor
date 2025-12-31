@@ -57,7 +57,11 @@
                         <PropertyColumn Property="x => x.name" Title="Title" />
                         <PropertyColumn Property="x => x.platforms" Title="Platform" />
                         <PropertyColumn Property="x => x.releasedates" Title="Release Date" />
-                        <PropertyColumn Property="x => (int)x.aggregatedrating" Title="Rating" />
+                        <PropertyColumn Property="x => x.aggregatedrating.HasValue ? (int)x.aggregatedrating.Value : 0" Title="Rating">
+                            <CellTemplate>
+                                @(context.Item.aggregatedrating.HasValue ? ((int)context.Item.aggregatedrating.Value).ToString() : "N/A")
+                            </CellTemplate>
+                        </PropertyColumn>
                         <PropertyColumn Property="x => x.genres" Title="Genres" />
                         <PropertyColumn Property="x => x.status" Title="Status">
                             <CellTemplate Context="gameContext">
@@ -159,7 +163,11 @@
                         <PropertyColumn Property="x => x.name" Title="Title" />
                         <PropertyColumn Property="x => x.platforms" Title="Platform" />
                         <PropertyColumn Property="x => x.releasedates" Title="Release Date" />
-                        <PropertyColumn Property="x => (int)x.aggregatedrating" Title="Rating" />
+                        <PropertyColumn Property="x => x.aggregatedrating.HasValue ? (int)x.aggregatedrating.Value : 0" Title="Rating">
+                            <CellTemplate>
+                                @(context.Item.aggregatedrating.HasValue ? ((int)context.Item.aggregatedrating.Value).ToString() : "N/A")
+                            </CellTemplate>
+                        </PropertyColumn>
                         <PropertyColumn Property="x => x.status" Title="Status">
                             <CellTemplate Context="gameContext">
                                 <MudSelect T="string" 
