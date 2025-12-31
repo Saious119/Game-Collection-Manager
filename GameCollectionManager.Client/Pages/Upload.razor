@@ -9,6 +9,7 @@
 @using GameCollectionManager.Client.Shared
 @using GameCollectionManager.Shared.Models
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Text.RegularExpressions
 
 @inject ISnackbar Snackbar
 @inject HttpClient Http
@@ -483,7 +484,8 @@
         try
         {
             GameDAO gameDao;
-            
+            var ASCIIpattern = @"[^a-zA-Z0-9\s\.\-']";
+            steamGame.game = Regex.Replace(steamGame.game ?? "", ASCIIpattern, "");
             var igdbGame = await SearchIGDB(steamGame.game ?? "");
             
             if (igdbGame != null)
