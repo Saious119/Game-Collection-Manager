@@ -16,9 +16,10 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Home" Color="Color.Inherit" OnClick="HandleHome" />
                     <AuthorizeView>
                         <Authorized>
-                            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="HandleUpload">
-                                Upload Collection
-                            </MudButton>
+                            <MudMenu Label="Upload Collection" Variant="Variant.Filled" Color="Color.Inherit" Size="Size.Small">
+                                <MudMenuItem OnClick="HandleSteamUpload" Label="Upload Steam Collection"/>
+                                <MudMenuItem OnClick="HandleCLZUpload" Label="Upload CLZ Collection"/>
+                            </MudMenu>
                         </Authorized>
                     </AuthorizeView>
                 </div>
@@ -83,7 +84,9 @@
 
     private void HandleHome() => NavigationManager.NavigateTo("/");
 
-    private async Task HandleUpload() => NavigationManager.NavigateTo("/upload");
+    private async Task HandleSteamUpload() => NavigationManager.NavigateTo("/upload-steam");
+
+    private async Task HandleCLZUpload() => NavigationManager.NavigateTo("/upload-clz");
 
     private string GetUsername(ClaimsPrincipal user)
     {

@@ -1,4 +1,4 @@
-﻿@page "/upload"
+﻿@page "/upload-steam"
 
 @using FluentValidation
 @using CsvHelper
@@ -36,6 +36,10 @@
     
     .row-failed {
         background-color: rgba(244, 67, 54, 0.2) !important;
+    }
+    
+    .row-skipped {
+        background-color: rgba(158, 158, 158, 0.2) !important;
     }
     
     .expand-icon {
@@ -168,7 +172,11 @@
                                 <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">@result.Game.platforms</td>
                                 <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">@result.Game.metacriticscore</td>
                                 <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">
-                                    @if (result.HadIgdbMatch)
+                                    @if (result.Skipped)
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Text="Skipped" />
+                                    }
+                                    else if (result.HadIgdbMatch)
                                     {
                                         <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="Found" />
                                     }
@@ -178,7 +186,11 @@
                                     }
                                 </td>
                                 <td @onclick="@(() => ToggleRow(result))" style="cursor: pointer;">
-                                    @if (result.UploadSuccess)
+                                    @if (result.Skipped)
+                                    {
+                                        <MudChip T="string" Color="Color.Default" Size="Size.Small" Text="Already Exists" />
+                                    }
+                                    else if (result.UploadSuccess)
                                     {
                                         <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="Success" />
                                     }
@@ -192,7 +204,7 @@
                                               Size="Size.Small" 
                                               Variant="Variant.Filled"
                                               OnClick="@(() => OpenIdentifyDialog(result))"
-                                              Disabled="@(!result.UploadSuccess)">
+                                              Disabled="@(!result.UploadSuccess || result.Skipped)">
                                         Identify
                                     </MudButton>
                                 </td>
@@ -202,7 +214,14 @@
                                 <tr class="detail-row">
                                     <td colspan="8" style="padding: 16px;">
                                         <MudPaper Elevation="0" Class="pa-4">
-                                            @if (result.UploadSuccess)
+                                            @if (result.Skipped)
+                                            {
+                                                <MudText Color="Color.Default">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                                                    Game already exists in your collection with the same name and platform
+                                                </MudText>
+                                            }
+                                            else if (result.UploadSuccess)
                                             {
                                                 <MudText Color="Color.Success">
                                                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" /> 
@@ -233,6 +252,10 @@
                     <MudText>Successfully added: @_processingSummary.SuccessCount games</MudText>
                     <MudText>IGDB matches found: @_processingSummary.IgdbMatchCount games</MudText>
                     <MudText>Added without IGDB data: @_processingSummary.NoMatchCount games</MudText>
+                    @if (_processingSummary.SkippedCount > 0)
+                    {
+                        <MudText Color="Color.Default">Skipped (already exist): @_processingSummary.SkippedCount games</MudText>
+                    }
                     @if (_processingSummary.FailedCount > 0)
                     {
                         <MudText Color="Color.Error">Failed: @_processingSummary.FailedCount games</MudText>
@@ -256,6 +279,7 @@
         public int FailedCount;
         public int IgdbMatchCount;
         public int NoMatchCount;
+        public int SkippedCount;
     }
 
     public class ProcessedGameResult
@@ -263,6 +287,7 @@
         public GameDAO Game { get; set; } = new();
         public bool HadIgdbMatch { get; set; }
         public bool UploadSuccess { get; set; }
+        public bool Skipped { get; set; }
         public string ErrorMessage { get; set; } = string.Empty;
         public bool IsExpanded { get; set; }
     }
@@ -278,6 +303,7 @@
     private int _totalGames;
     private ProcessingSummary? _processingSummary;
     private string? _currentUsername;
+    private List<GameDAO> _existingGames = new();
     private const string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full";
     private string _dragClass = DefaultDragClass;
 
@@ -404,6 +430,9 @@
 
         try
         {
+            // Load existing games from user's collection
+            await LoadExistingGames();
+
             // Step 1: Parse CSV files
             List<SteamLibraryModel> steamGames = new();
             foreach (var file in _model.Files)
@@ -464,7 +493,7 @@
 
             _processingSummary = summary;
             StateHasChanged();
-            Snackbar.Add($"Processing complete! Added {summary.SuccessCount} games", MudBlazor.Severity.Success);
+            Snackbar.Add($"Processing complete! Added {summary.SuccessCount} games, skipped {summary.SkippedCount} duplicates", MudBlazor.Severity.Success);
         }
         catch (Exception ex)
         {
@@ -477,12 +506,87 @@
         }
     }
 
+    private async Task LoadExistingGames()
+    {
+        try
+        {
+            _existingGames = await Http.GetFromJsonAsync<List<GameDAO>>($"api/GameCollection/GetCollection/{_currentUsername}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading existing games: {ex.Message}");
+            _existingGames = new();
+        }
+    }
+
+    private bool GameAlreadyExists(string gameName)
+    {
+        if (string.IsNullOrWhiteSpace(gameName))
+            return false;
+
+        var normalizedName = NormalizeGameName(gameName);
+
+        return _existingGames.Any(existingGame =>
+        {
+            var existingNormalizedName = NormalizeGameName(existingGame.name ?? "");
+            
+            // Check if normalized names match
+            if (existingNormalizedName != normalizedName)
+                return false;
+
+            // Parse the existing game's platforms
+            var existingPlatforms = (existingGame.platforms ?? "")
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => NormalizePlatform(p.Trim()));
+
+            // Check if any of the existing game's platforms are in our allowed platforms list
+            return existingPlatforms.Any(p => _allowedPlatforms.Contains(p));
+        });
+    }
+
+    private string NormalizeGameName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "";
+
+        // Remove special characters, extra spaces, and convert to lowercase for comparison
+        var normalized = Regex.Replace(name, @"[^a-zA-Z0-9\s]", "");
+        normalized = Regex.Replace(normalized, @"\s+", " ");
+        return normalized.Trim().ToLowerInvariant();
+    }
+
+    private string NormalizePlatform(string platform)
+    {
+        if (string.IsNullOrWhiteSpace(platform))
+            return "";
+
+        return platform.Trim().ToLowerInvariant();
+    }
+
     private async Task<ProcessedGameResult> ProcessSingleGame(SteamLibraryModel steamGame, ProcessingSummary summary)
     {
         var result = new ProcessedGameResult();
 
         try
         {
+            // Check if game already exists on any allowed platform
+            if (GameAlreadyExists(steamGame.game ?? ""))
+            {
+                result.Game = new GameDAO
+                {
+                    name = steamGame.game ?? "Unknown",
+                    platforms = "Steam",
+                    status = "Not Started",
+                    metacriticscore = steamGame.metascore
+                };
+                result.Skipped = true;
+                result.UploadSuccess = false;
+                result.HadIgdbMatch = false;
+                result.ErrorMessage = "Game already exists in collection";
+                Interlocked.Increment(ref summary.SkippedCount);
+                return result;
+            }
+
             GameDAO gameDao;
             var ASCIIpattern = @"[^a-zA-Z0-9\s\.\-']";
             steamGame.game = Regex.Replace(steamGame.game ?? "", ASCIIpattern, "");
@@ -531,6 +635,9 @@
 
     private string GetRowClass(ProcessedGameResult result)
     {
+        if (result.Skipped)
+            return "row-skipped";
+
         if (!result.UploadSuccess)
             return "row-failed";
         
@@ -562,7 +669,7 @@
         // Filter platforms to only include allowed ones
         string platforms = FilterPlatforms(igdbGame.platforms);
         
-        // If no allowed platforms found, default to PC
+        // If no allowed platforms found, default to Steam
         if (string.IsNullOrWhiteSpace(platforms))
         {
             platforms = "Steam";
@@ -657,6 +764,68 @@
             RuleFor(x => x.Files)
                 .NotEmpty()
                 .WithMessage("There must be at least 1 file.");
+            
+            RuleForEach(x => x.Files)
+                .Must(file => file != null && file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                .WithMessage("Only CSV files are allowed.")
+                .MustAsync(async (file, cancellationToken) => await IsParsableToSteamLibraryModel(file))
+                .WithMessage("The CSV file format is invalid. Please ensure it matches the Steam Filters export format with the required column: game.");
+        }
+
+        private static async Task<bool> IsParsableToSteamLibraryModel(IBrowserFile? file)
+        {
+            if (file == null) return false;
+
+            try
+            {
+                const long maxFileSize = 10 * 1024 * 1024; // 10MB limit for validation
+                using var stream = file.OpenReadStream(maxFileSize);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                using var reader = new StreamReader(memoryStream);
+                using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+                {
+                    HasHeaderRecord = true,
+                    MissingFieldFound = null,
+                    HeaderValidated = null,
+                    TrimOptions = TrimOptions.Trim
+                });
+
+                // Try to read the header and first record to validate structure
+                csv.Read();
+                csv.ReadHeader();
+                
+                // Check for required headers (case-insensitive)
+                var header = csv.HeaderRecord;
+                if (header == null) return false;
+
+                var requiredHeaders = new[] { "game" };
+                var headerLowerCase = header.Select(h => h.ToLower()).ToHashSet();
+                
+                foreach (var requiredHeader in requiredHeaders)
+                {
+                    if (!headerLowerCase.Contains(requiredHeader.ToLower()))
+                    {
+                        return false;
+                    }
+                }
+
+                // Try to read at least one record to ensure it's parsable
+                if (csv.Read())
+                {
+                    var record = csv.GetRecord<SteamLibraryModel>();
+                    return record != null;
+                }
+
+                // Empty file with correct headers is still valid
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
