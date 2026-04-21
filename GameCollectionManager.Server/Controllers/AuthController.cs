@@ -57,8 +57,8 @@ namespace GameCollectionManager.Api.Controllers
                 );
 
                 // Redirect back to Blazor app with token
-                var clientUrl = "https://localhost:7176/authentication/login-callback";
-                return Redirect($"{clientUrl}?token={jwtToken}");
+                var clientUrl = Environment.GetEnvironmentVariable("CLIENT_URL") ?? "http://localhost:5272";
+                return Redirect($"{clientUrl}/authentication/login-callback?token={jwtToken}");
             }
             catch (Exception ex)
             {
