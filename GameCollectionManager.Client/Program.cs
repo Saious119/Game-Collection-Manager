@@ -24,7 +24,7 @@ builder.Services.AddScoped<CustomAuthorizationMessageHandler>();
 
 // Configure HttpClient with the handler
 builder.Services.AddHttpClient("API", client => 
-    client.BaseAddress = new Uri("https://localhost:5001"))
+    client.BaseAddress = new Uri("http://localhost:5000"))
     .AddHttpMessageHandler<CustomAuthorizationMessageHandler>();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("API"));

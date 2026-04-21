@@ -23,7 +23,6 @@ namespace GameCollectionManagerAPI
             builder.Services.AddSingleton<IDB_Service, DB_Services>();
             builder.Services.AddSingleton<IMetaCritic_Services, MetaCritic_Services>();
             builder.Services.AddSingleton<IIGDB_Service, IGDB_Service>();
-            builder.Services.AddSingleton<StaticVariables>();
             builder.Services.AddSwaggerGen();
 
             // Add JWT Authentication

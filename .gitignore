@@ -368,3 +368,5 @@ GameCollectionManagerAPI/Properties/launchSettings.json
 /ExampleData
 /GameCollectionManager.Server/appsettings.json
 /GameCollectionManager.Server/Properties/launchSettings.json
+
+.idea/
