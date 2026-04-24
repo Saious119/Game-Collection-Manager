@@ -10,6 +10,7 @@ namespace GameCollectionManager.Shared.Models
     {
         public int id { get; set; }
         public float aggregated_rating { get; set; }
+        public int category { get; set; }
         public int cover { get; set; }
         public List<Genre> genres { get; set; }
         public List<InvolvedCompanies> involved_companies { get; set; }
