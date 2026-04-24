@@ -365,6 +365,8 @@
 
                 if (success)
                 {
+                    // Remove old no data game from DB
+                    var (success2, errorMessage2) = await RemoveGameFromDatabase(result.Game);
                     // Update the result in the list
                     result.Game = updatedGame;
                     result.HadIgdbMatch = true;
@@ -696,6 +698,28 @@
         catch (Exception ex)
         {
             return (false, $"Failed to add game '{gameDao.name}': {ex.Message}");
+        }
+    }
+
+    private async Task<(bool success, string errorMessage)> RemoveGameFromDatabase(GameDAO gameDao)
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"api/GameCollection/DeleteGame?user={Uri.EscapeDataString(_currentUsername ?? "")}", gameDao);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                return (true, string.Empty);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                return (false, $"HTTP {(int)response.StatusCode}: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Failed to delete game '{gameDao.name}': {ex.Message}");
         }
     }
 
