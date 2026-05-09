@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: game-collection
+
+---
+# Syncs secrets from Vault KV-v2 into the Kubernetes Secret referenced by the API Deployment.
+# Vault path: secret/game-collection/api
+# Expected fields in that Vault secret:
+#   gamedb-connect-string, igdb-client-id, igdb-client-secret,
+#   discord-client-id, discord-client-secret, discord-redirect-uri,
+#   jwt-secret-key, jwt-issuer, jwt-audience
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: game-collection-vault-secret
+  namespace: game-collection
+  labels:
+    app: game-collection-api
+    app.kubernetes.io/managed-by: vault-secrets-operator
+spec:
+  vaultAuthRef: vault-auth
+  mount: secret
+  type: kv-v2
+  path: game-collection/api
+  refreshAfter: 60s
+  destination:
+    name: game-collection-manager
+    create: true
+    labels:
+      app: game-collection-api
+    overwrite: true
+    transformation:
+      excludeRaw: true
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: client-appsettings
+  namespace: game-collection
+data:
+  appsettings.json: |
+    {
+      "ApiBaseUrl": "http://whattoplay.local/api"
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-collection-api
+  namespace: game-collection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: game-collection-api
+  template:
+    metadata:
+      labels:
+        app: game-collection-api
+    spec:
+      containers:
+        - name: api
+          image: your-registry/game-collection-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Production"
+            - name: gamedb_connect_string
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: gamedb-connect-string
+            - name: IGDB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: igdb-client-id
+            - name: IGDB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: igdb-client-secret
+            - name: DISCORD_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: discord-client-id
+            - name: DISCORD_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: discord-client-secret
+            - name: DISCORD_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: discord-redirect-uri
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: jwt-secret-key
+            - name: JWT_ISSUER
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: jwt-issuer
+            - name: JWT_AUDIENCE
+              valueFrom:
+                secretKeyRef:
+                  name: game-collection-manager
+                  key: jwt-audience
+            - name: CLIENT_URL
+              value: "http://whattoplay.local"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game-collection-api
+  namespace: game-collection
+spec:
+  selector:
+    app: game-collection-api
+  ports:
+    - port: 80
+      targetPort: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-collection-client
+  namespace: game-collection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: game-collection-client
+  template:
+    metadata:
+      labels:
+        app: game-collection-client
+    spec:
+      containers:
+        - name: client
+          image: your-registry/game-collection-client:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: appsettings
+              mountPath: /usr/share/nginx/html/appsettings.json
+              subPath: appsettings.json
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: appsettings
+          configMap:
+            name: client-appsettings
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game-collection-client
+  namespace: game-collection
+spec:
+  selector:
+    app: game-collection-client
+  ports:
+    - port: 80
+      targetPort: 80
+
+---
+# Strips the /api prefix before forwarding to the API service so the
+# ASP.NET controllers don't need to know about it.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: api-strip-prefix
+  namespace: game-collection
+spec:
+  stripPrefix:
+    prefixes:
+      - /api
+
+---
+# Routes whattoplay.local:
+#   /api/* → game-collection-api (prefix stripped)
+#   /*     → game-collection-client
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: game-collection
+  namespace: game-collection
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`whattoplay.local`) && PathPrefix(`/api`)
+      kind: Rule
+      middlewares:
+        - name: api-strip-prefix
+      services:
+        - name: game-collection-api
+          port: 80
+    - match: Host(`whattoplay.local`)
+      kind: Rule
+      services:
+        - name: game-collection-client
+          port: 80
