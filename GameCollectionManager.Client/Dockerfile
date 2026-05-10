@@ -1,17 +1,17 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+# syntax=docker/dockerfile:1
 
-COPY ["GameCollectionManager.Client/GameCollectionManager.Client.csproj", "GameCollectionManager.Client/"]
-COPY ["GameCollectionManager.Shared/GameCollectionManager.Shared.csproj", "GameCollectionManager.Shared/"]
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
-RUN dotnet restore "GameCollectionManager.Client/GameCollectionManager.Client.csproj"
+COPY . /source
 
-COPY . .
+WORKDIR /source/GameCollectionManager.Client
 
-WORKDIR "/src/GameCollectionManager.Client"
-RUN dotnet publish "GameCollectionManager.Client.csproj" -c Release -o /app/publish
+ARG TARGETARCH
+
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish -a ${TARGETARCH/amd64/x64} --use-current-runtime --self-contained false -c Release -o /app
 
 FROM nginx:alpine AS final
-COPY --from=build /app/publish/wwwroot /usr/share/nginx/html
+COPY --from=build /app/wwwroot /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
