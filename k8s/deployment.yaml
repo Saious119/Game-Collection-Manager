@@ -63,7 +63,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: your-registry/game-collection-api:latest
+          image: localhost:5000/game-collection-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -166,7 +166,7 @@ spec:
     spec:
       containers:
         - name: client
-          image: your-registry/game-collection-client:latest
+          image: localhost:5000/game-collection-client:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80
