@@ -109,7 +109,7 @@ The IngressRoute routes all traffic on `whattoplay.local`:
 
 ### 1e. Set Your Image Names
 
-Replace `your-registry/game-collection-api:latest` and `your-registry/game-collection-client:latest` with the actual image paths you'll push to your registry.
+Replace `localhost:5000/game-collection-api:latest` and `localhost:5000/game-collection-client:latest` with the actual image paths you'll push to your registry.
 
 ---
 
@@ -119,12 +119,12 @@ Run these from the **solution root** (the directory containing `GameCollectionMa
 
 ```bash
 # Build and push the API image
-docker build -t your-registry/game-collection-api:latest .
-docker push your-registry/game-collection-api:latest
+docker build -t localhost:5000/game-collection-api:latest .
+docker push localhost:5000/game-collection-api:latest
 
 # Build and push the client image
-docker build -f GameCollectionManager.Client/Dockerfile -t your-registry/game-collection-client:latest .
-docker push your-registry/game-collection-client:latest
+docker build -f GameCollectionManager.Client/Dockerfile -t localhost:5000/game-collection-client:latest .
+docker push localhost:5000/game-collection-client:latest
 ```
 
 Both builds use the solution root as the Docker build context so they can access all three projects (Server, Client, Shared).
@@ -165,8 +165,8 @@ To deploy a new version:
 
 ```bash
 # Rebuild and push the updated image(s)
-docker build -t your-registry/game-collection-api:latest .
-docker push your-registry/game-collection-api:latest
+docker build -t localhost:5000/game-collection-api:latest .
+docker push localhost:5000/game-collection-api:latest
 
 # Roll out the update
 kubectl rollout restart deployment/game-collection-api -n game-collection
@@ -176,7 +176,7 @@ Use a specific tag (e.g., `:v1.2.3`) instead of `:latest` in production so rollb
 
 ```bash
 kubectl set image deployment/game-collection-api \
-  api=your-registry/game-collection-api:v1.2.3 \
+  api=localhost:5000/game-collection-api:v1.2.3 \
   -n game-collection
 ```
 
