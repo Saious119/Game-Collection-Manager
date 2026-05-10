@@ -1,27 +1,27 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+# syntax=docker/dockerfile:1
 
-COPY ["GameCollectionManager.Server/GameCollectionManager.Server.csproj", "GameCollectionManager.Server/"]
-COPY ["GameCollectionManager.Client/GameCollectionManager.Client.csproj", "GameCollectionManager.Client/"]
-COPY ["GameCollectionManager.Shared/GameCollectionManager.Shared.csproj", "GameCollectionManager.Shared/"]
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
-RUN dotnet restore "GameCollectionManager.Server/GameCollectionManager.Server.csproj"
+COPY . /source
 
-COPY . .
+WORKDIR /source/GameCollectionManager.Server
 
-WORKDIR "/src/GameCollectionManager.Server"
-RUN dotnet publish "GameCollectionManager.Server.csproj" -c Release -o /app/publish /p:UseAppHost=false
+ARG TARGETARCH
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish -a ${TARGETARCH/amd64/x64} --use-current-runtime --self-contained false -c Release -o /app
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 
-RUN adduser --disabled-password --no-create-home appuser
+RUN apk add --no-cache icu-libs tzdata
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
-COPY --from=build /app/publish .
-RUN chown -R appuser:appuser /app
-USER appuser
+COPY --from=build /app .
 
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
+
+USER $APP_UID
 
 ENTRYPOINT ["dotnet", "GameCollectionManager.Server.dll"]
