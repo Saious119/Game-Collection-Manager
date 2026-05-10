@@ -3,7 +3,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REGISTRY="${REGISTRY:-localhost:5000}"
+REGISTRY="${REGISTRY:-192.168.1.178:5000}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
