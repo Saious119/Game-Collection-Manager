@@ -31,7 +31,7 @@ FAILED=0
 
 # API — Dockerfile is at the solution root, context is solution root
 print_info "Building game-collection-api..."
-if docker build --provenance=false -t "${REGISTRY}/game-collection-api:latest" "$SCRIPT_DIR"; then
+if docker build --provenance=false --platform linux/amd64 -t "${REGISTRY}/game-collection-api:latest" "$SCRIPT_DIR"; then
     print_info "Pushing game-collection-api..."
     docker push "${REGISTRY}/game-collection-api:latest"
     print_info "game-collection-api done"
@@ -44,7 +44,8 @@ echo ""
 
 # Client — Dockerfile is in GameCollectionManager.Client/, context is solution root
 print_info "Building game-collection-client..."
-if docker build --provenance=false -f "$SCRIPT_DIR/GameCollectionManager.Client/Dockerfile" \
+if docker build --provenance=false --platform linux/amd64 \
+               -f "$SCRIPT_DIR/GameCollectionManager.Client/Dockerfile" \
                -t "${REGISTRY}/game-collection-client:latest" "$SCRIPT_DIR"; then
     print_info "Pushing game-collection-client..."
     docker push "${REGISTRY}/game-collection-client:latest"
