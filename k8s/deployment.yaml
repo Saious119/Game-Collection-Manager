@@ -5,7 +5,7 @@ metadata:
 
 ---
 # Syncs secrets from Vault KV-v2 into the Kubernetes Secret referenced by the API Deployment.
-# Vault path: secret/game-collection/api
+# Vault path: secret/game-collection-manager
 # Expected fields in that Vault secret:
 #   gamedb-connect-string, igdb-client-id, igdb-client-secret,
 #   discord-client-id, discord-client-secret, discord-redirect-uri,
@@ -22,7 +22,7 @@ spec:
   vaultAuthRef: vault-auth
   mount: secret
   type: kv-v2
-  path: game-collection/api
+  path: game-collection-manager
   refreshAfter: 60s
   destination:
     name: game-collection-manager
