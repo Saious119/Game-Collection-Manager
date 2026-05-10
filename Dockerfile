@@ -9,7 +9,7 @@ WORKDIR /source/GameCollectionManager.Server
 RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
     dotnet publish GameCollectionManager.Server.csproj --self-contained false -c Release -o /app
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
+FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 
 RUN apk add --no-cache icu-libs tzdata
