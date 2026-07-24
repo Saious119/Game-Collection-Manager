@@ -517,7 +517,7 @@
 
     private async Task DeleteGameWithConfirmation(GameDAO game)
     {
-        var confirmed = await DialogService.ShowMessageBox(
+        var confirmed = await DialogService.ShowMessageBoxAsync(
             "Delete Game",
             $"Are you sure you want to delete {game.name}?",
             yesText: "Delete",
