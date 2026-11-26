@@ -2,7 +2,6 @@
 
 @using FluentValidation
 @using CsvHelper
-@using CsvHelper.Configuration
 @using System.Globalization
 @using System.IO
 @using System.Threading
@@ -265,7 +264,7 @@
 </MudStack>
 
 @code {
-#nullable enable
+    #nullable enable
     public class Model
     {
         public IReadOnlyList<IBrowserFile>? Files { get; set; } = new List<IBrowserFile>();
@@ -427,13 +426,13 @@
                 memoryStream.Position = 0;
 
                 using var reader = new StreamReader(memoryStream);
-                using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+
+                var options = new CsvReaderOptions
                 {
-                    HasHeaderRecord = true,
-                    MissingFieldFound = null,
-                    HeaderValidated = null,
-                    TrimOptions = TrimOptions.Trim
-                });
+                    HasHeader = true,
+                    TrimWhitespace = true
+                };
+                using var csv = CsvReader.Create(reader, options);
 
                 games.AddRange(csv.GetRecords<CLZ_Model>().ToList());
             }
@@ -769,20 +768,19 @@
                 memoryStream.Position = 0;
 
                 using var reader = new StreamReader(memoryStream);
-                using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+                var options = new CsvReaderOptions
                 {
-                    HasHeaderRecord = true,
-                    MissingFieldFound = null,
-                    HeaderValidated = null,
-                    TrimOptions = TrimOptions.Trim
-                });
+                    HasHeader = true,
+                    TrimWhitespace = true
+                };
+                using var csv = CsvReader.Create(reader, options);
 
                 // Try to read the header and first record to validate structure
                 csv.Read();
                 csv.ReadHeader();
                 
                 // Check for required headers (case-insensitive)
-                var header = csv.HeaderRecord;
+                var header = csv.Headers;
                 if (header == null) return false;
 
                 var requiredHeaders = new[] { "Platform", "Title" };
